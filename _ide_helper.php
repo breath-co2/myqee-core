@@ -22,4 +22,12 @@ namespace Database
     exit;
 
     class Driver extends \Core\Database\Driver{}
+
+    class Result extends \Core\Database\Result{}
+
+    class Transaction extends \Core\Database\Transaction{}
+
+    class QueryBuilder extends \Core\Database\QueryBuilder{}
+
+    class Expression extends \Core\Database\Expression{}
 }

@@ -57,6 +57,13 @@ abstract class Core
              */
             \define('IS_ADMIN_MODE', false);
 
+            /**
+             * 服务器是否支持mbstring
+             *
+             * @var boolean
+             */
+            \define('IS_MBSTRING',extension_loaded('mbstring')?true:false);
+
             $is_online_debug = function()
             {
                 if (!isset($_COOKIE['_debug_open'])) return false;

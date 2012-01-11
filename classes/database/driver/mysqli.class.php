@@ -2,7 +2,7 @@
 namespace Core\Database\Driver;
 
 /**
- * 数据库MySQL驱动核心类
+ * 数据库MySQLI驱动核心类
  *
  * @author     jonwang(jonwang@myqee.com)
  * @category   Core
@@ -11,9 +11,8 @@ namespace Core\Database\Driver;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class MySQL extends \Database\Driver
+class MySQLI extends \Database\Driver
 {
-
     /**
      * MySQL使用反引号标识符
      *
@@ -88,7 +87,7 @@ class MySQL extends \Database\Driver
     /**
      * 获取当前连接
      *
-     * @return mysql
+     * @return mysqli
      */
     public function connection()
     {
@@ -136,7 +135,7 @@ class MySQL extends \Database\Driver
             else
             {
                 $hostconfig = array(
-                        $hostname
+                    $hostname
                 );
             }
 
@@ -156,7 +155,7 @@ class MySQL extends \Database\Driver
         }
 
         $try_num = 5;
-        for( $i=1;$i<=$try_num;$i++ )
+        for( $i = 1; $i <= $try_num; $i++ )
         {
             $hostname = $this->_get_rand_host();
             $_connection_id = $this->_get_connection_hash($hostname, $port, $username);
@@ -166,21 +165,24 @@ class MySQL extends \Database\Driver
             try
             {
                 $time = \microtime(true);
-
                 if ( empty($persistent) )
                 {
-                    $tmplink = \mysql_connect($hostname . ($port && $port != 3306 ? ':' . $port : ''), $username, $password, true);
+                    $tmplink =\mysqli_init();
+                    \mysqli_options($tmplink,\MYSQLI_OPT_CONNECT_TIMEOUT, 3);
+                    \mysqli_real_connect($tmplink, $hostname, $username, $password, $database, $port, null,\MYSQLI_CLIENT_COMPRESS);
                 }
                 else
                 {
-                    $tmplink = \mysql_pconnect($hostname . ($port && $port != 3306 ? ':' . $port : ''), $username, $password);
+                    $tmplink = new \mysqli($hostname, $username, $password, $database, $port);
                 }
 
-                \Core::debug()->info(' mysql '.$hostname.':'.$port.' connection time:' . (\microtime(true) - $time));
+                \Core::debug()->info('mysqli '.$hostname.':'.$port.' connection time:' . (\microtime(true) - $time));
 
                 # 连接ID
                 $this->_connection_ids[$this->_connection_type] = $_connection_id;
                 static::$_connection_instance[$_connection_id] = $tmplink;
+
+                static::$_current_databases[$_connection_id] = $database;
 
                 unset($tmplink);
 
@@ -188,7 +190,7 @@ class MySQL extends \Database\Driver
             }
             catch ( \Exception $e )
             {
-                if ( $i==$try_num )
+                if ( $i == $try_num )
                 {
                     throw new \Exception('数据库链接失败');
                 }
@@ -214,7 +216,7 @@ class MySQL extends \Database\Driver
 
             if ($connection)
             {
-                $ping_status = \mysql_ping($connection);
+                $ping_status = \mysqli_ping($connection);
             }
             else
             {
@@ -241,7 +243,7 @@ class MySQL extends \Database\Driver
             }
             else
             {
-                throw new \Exception('connect mysql server error');
+                throw new \Exception('connect mysqli server error');
             }
         }
 
@@ -251,13 +253,13 @@ class MySQL extends \Database\Driver
      * 关闭链接
      */
     public function close_connect()
-    {
+{
         if ($this->_connection_ids)foreach ($this->_connection_ids as $key=>$connection_id)
         {
             if ($connection_id && static::$_connection_instance[$connection_id])
             {
-                \Core::debug()->info('close '.$key.' mysql '.static::$_current_connection_id_to_hostname[$connection_id].' connection.');
-                @\mysql_close(static::$_connection_instance[$connection_id]);
+                \Core::debug()->info('close '.$key.' mysqli '.static::$_current_connection_id_to_hostname[$connection_id].' connection.');
+                @\mysqli_close(static::$_connection_instance[$connection_id]);
 
                 unset(static::$_connection_instance[$connection_id]);
                 unset(static::$_current_databases[$connection_id]);
@@ -266,7 +268,7 @@ class MySQL extends \Database\Driver
             }
             else
             {
-                \Core::debug()->info($key.' mysql '.static::$_current_connection_id_to_hostname[$connection_id].' connection has closed.');
+                \Core::debug()->info($key.' mysqli '.static::$_current_connection_id_to_hostname[$connection_id].' connection has closed.');
             }
 
             $this->_connection_ids[$key] = null;
@@ -276,8 +278,8 @@ class MySQL extends \Database\Driver
     /**
      * 切换表
      *
-     * @param string Database
-     * @return void
+     * @param   string Database
+     * @return  void
      */
     protected function _select_db($database)
     {
@@ -296,9 +298,9 @@ class MySQL extends \Database\Driver
                 return;
             }
 
-            if ( !\mysql_select_db($database,$connection) )
+            if ( !\mysqli_select_db($connection,$database) )
             {
-                throw new \Exception('选择数据表错误:' . \mysql_error($connection) . \mysql_errno($connection));
+                throw new \Exception('选择数据表错误:' .\mysqli_error($connection),\mysqli_errno($connection));
             }
 
             # 记录当前已选中的数据库
@@ -363,10 +365,10 @@ class MySQL extends \Database\Driver
         {
             // Determine if we can use mysql_set_charset(), which is only
             // available on PHP 5.2.3+ when compiled against MySQL 5.0+
-            $_set_names = ! \function_exists('\\mysql_set_charset');
+            $_set_names = ! \function_exists('\\mysqli_set_charset');
         }
 
-        if ( isset(static::$_current_charset[$connection_id]) && $charset==static::$_current_charset[$connection_id] )
+        if ( isset(static::$_current_charset[$connection_id]) && $charset == static::$_current_charset[$connection_id] )
         {
             return true;
         }
@@ -374,17 +376,17 @@ class MySQL extends \Database\Driver
         if (true===$_set_names)
         {
             // PHP is compiled against MySQL 4.x
-            $status = (bool)\mysql_query('SET NAMES ' . $this->quote($charset), $connection);
+            $status = (bool)\mysqli_query('SET NAMES ' . $this->quote($charset), $connection);
         }
         else
         {
             // PHP is compiled against MySQL 5.x
-            $status = \mysql_set_charset($charset, $connection);
+            $status = \mysqli_set_charset($connection, $charset);
         }
 
         if ( $status === false )
         {
-            throw new \Exception('Error:' . \mysql_error($connection), \mysql_errno($connection));
+            throw new \Exception('Error:' .\mysqli_error($connection),\mysqli_errno($connection));
         }
 
         # 记录当前设置的编码
@@ -397,9 +399,9 @@ class MySQL extends \Database\Driver
 
         $this->_change_charset($value);
 
-        if ( ($value = \mysql_real_escape_string($value,$connection)) === false )
+        if ( ($value = \mysqli_real_escape_string($connection, $value)) === false )
         {
-            throw new \Exception('Error:'.\mysql_error($connection), \mysql_errno($connection));
+            throw new \Exception('Error:' .\mysqli_errno($connection),\mysqli_error($connection));
         }
 
         return "'$value'";
@@ -413,25 +415,25 @@ class MySQL extends \Database\Driver
      * @param string $sql 查询语句
      * @param string $as_object 是否返回对象
      * @param boolean $use_connection_type 是否使用主数据库，不设置则自动判断
-     * @return \Database\Driver\MySQL\Result
+     * @return \Database\Driver\MySQLI\Result
      */
     public function query($sql, $as_object=null, $use_connection_type=null)
     {
         $sql = \trim($sql);
 
-        if ( \preg_match('#^([a-z]+)(:? |\n|\r)#i',$sql,$m) )
+        if ( \preg_match('#^([a-z]+)(:? |\n|\r)#i', $sql, $m) )
         {
             $type = \strtoupper($m[1]);
         }
         $typeArr = array(
-                'SELECT',
-                'SHOW',     //显示表
-                'EXPLAIN',  //分析
-                'DESCRIBE', //显示结结构
-                'INSERT',
-                'REPLACE',
-                'UPDATE',
-                'DELETE',
+            'SELECT',
+            'SHOW',     //显示表
+            'EXPLAIN',  //分析
+            'DESCRIBE', //显示结结构
+            'INSERT',
+            'REPLACE',
+            'UPDATE',
+            'DELETE',
         );
         if (!\in_array($type, $typeArr))
         {
@@ -489,7 +491,7 @@ class MySQL extends \Database\Driver
         }
 
         // Execute the query
-        if ( ($result = \mysql_query($sql, $connection)) === false )
+        if ( ($result = \mysqli_query($connection, $sql)) === false )
         {
             if ( isset($benchmark) )
             {
@@ -499,13 +501,13 @@ class MySQL extends \Database\Driver
 
             if ( \IS_DEBUG )
             {
-                $err = 'Error:' . \mysql_error($connection) . '. SQL:' . $sql;
+                $err = 'Error:' . \mysqli_error($connection) . '. SQL:' . $sql;
             }
             else
             {
-                $err = \mysql_error($connection);
+                $err = \mysqli_error($connection);
             }
-            throw new \Exception($err, \mysql_errno($connection));
+            throw new \Exception($err, \mysqli_errno($connection));
         }
 
         if ( isset($benchmark) )
@@ -530,9 +532,9 @@ class MySQL extends \Database\Driver
 
                 if ( \strtoupper(\substr($sql,0,6))=='SELECT' )
                 {
-                    $re = \mysql_query('EXPLAIN ' . $sql, $connection );
+                    $re = $connection->query('EXPLAIN ' . $sql);
                     $i = 0;
-                    while ( true == ($row = \mysql_fetch_array($re , \MYSQL_NUM)) )
+                    while ( true == ($row = $re->fetch_array(MYSQLI_NUM)) )
                     {
                         $data[$i]['select_type']      = (string)$row[1];
                         $data[$i]['table']            = (string)$row[2];
@@ -565,58 +567,58 @@ class MySQL extends \Database\Driver
         {
             // Return a list of insert id and rows created
             return array(
-                    \mysql_insert_id($connection),
-                    \mysql_affected_rows($connection)
+               \mysqli_insert_id($connection),
+               \mysqli_affected_rows($connection)
             );
         }
         elseif ( $type === 'UPDATE' || $type === 'DELETE' )
         {
             // Return the number of rows affected
-            return \mysql_affected_rows($connection);
+            return\mysqli_affected_rows($connection);
         }
         else
         {
             // Return an iterator of results
-            return new \Database\Driver\MySQL\Result( $result, $sql, $as_object ,$this->config );
+            return new \Database\Driver\MySQLI\Result( $result, $sql, $as_object ,$this->config );
         }
     }
 
     public function datatype($type)
     {
         static $types = array(
-                'blob'                          => array( 'type' => 'string', 'binary' => true, 'character_maximum_length' => '65535' ),
-                'bool'                          => array( 'type' => 'bool' ),
-                'bigint unsigned'               => array( 'type' => 'int', 'min' => '0', 'max' => '18446744073709551615' ),
-                'datetime'                      => array( 'type' => 'string' ),
-                'decimal unsigned'              => array( 'type' => 'float', 'exact' => true, 'min' => '0' ),
-                'double'                        => array( 'type' => 'float' ),
-                'double precision unsigned'     => array( 'type' => 'float', 'min' => '0' ),
-                'double unsigned'               => array( 'type' => 'float', 'min' => '0' ),
-                'enum'                          => array( 'type' => 'string' ),
-                'fixed'                         => array( 'type' => 'float', 'exact' => true ),
-                'fixed unsigned'                => array( 'type' => 'float', 'exact' => true, 'min' => '0' ),
-                'float unsigned'                => array( 'type' => 'float', 'min' => '0' ),
-                'int unsigned'                  => array( 'type' => 'int', 'min' => '0', 'max' => '4294967295' ),
-                'integer unsigned'              => array( 'type' => 'int', 'min' => '0', 'max' => '4294967295' ),
-                'longblob'                      => array( 'type' => 'string', 'binary' => true, 'character_maximum_length' => '4294967295' ),
-                'longtext'                      => array( 'type' => 'string', 'character_maximum_length' => '4294967295' ),
-                'mediumblob'                    => array( 'type' => 'string', 'binary' => true, 'character_maximum_length' => '16777215' ),
-                'mediumint'                     => array( 'type' => 'int', 'min' => '-8388608', 'max' => '8388607' ),
-                'mediumint unsigned'            => array( 'type' => 'int', 'min' => '0', 'max' => '16777215' ),
-                'mediumtext'                    => array( 'type' => 'string', 'character_maximum_length' => '16777215' ),
-                'national varchar'              => array( 'type' => 'string' ),
-                'numeric unsigned'              => array( 'type' => 'float', 'exact' => true, 'min' => '0' ),
-                'nvarchar'                      => array( 'type' => 'string' ),
-                'point'                         => array( 'type' => 'string', 'binary' => true ),
-                'real unsigned'                 => array( 'type' => 'float', 'min' => '0' ),
-                'set'                           => array( 'type' => 'string' ),
-                'smallint unsigned'             => array( 'type' => 'int', 'min' => '0', 'max' => '65535' ),
-                'text'                          => array( 'type' => 'string', 'character_maximum_length' => '65535' ),
-                'tinyblob'                      => array( 'type' => 'string', 'binary' => true, 'character_maximum_length' => '255' ),
-                'tinyint'                       => array( 'type' => 'int', 'min' => '-128', 'max' => '127' ),
-                'tinyint unsigned'              => array( 'type' => 'int', 'min' => '0', 'max' => '255' ),
-                'tinytext'                      => array( 'type' => 'string', 'character_maximum_length' => '255' ),
-                'year'                          => array( 'type' => 'string' )
+            'blob'	                        => array( 'type' => 'string', 'binary' => true, 'character_maximum_length' => '65535' ),
+            'bool'	                        => array( 'type' => 'bool' ),
+            'bigint unsigned'	            => array( 'type' => 'int', 'min' => '0', 'max' => '18446744073709551615' ),
+            'datetime'	                    => array( 'type' => 'string' ),
+            'decimal unsigned'	            => array( 'type' => 'float', 'exact' => true, 'min' => '0' ),
+            'double'	                    => array( 'type' => 'float' ),
+            'double precision unsigned'	    => array( 'type' => 'float', 'min' => '0' ),
+            'double unsigned'	            => array( 'type' => 'float', 'min' => '0' ),
+            'enum'	                        => array( 'type' => 'string' ),
+            'fixed'	                        => array( 'type' => 'float', 'exact' => true ),
+            'fixed unsigned'	            => array( 'type' => 'float', 'exact' => true, 'min' => '0' ),
+            'float unsigned'	            => array( 'type' => 'float', 'min' => '0' ),
+            'int unsigned'	                => array( 'type' => 'int', 'min' => '0', 'max' => '4294967295' ),
+            'integer unsigned'	            => array( 'type' => 'int', 'min' => '0', 'max' => '4294967295' ),
+            'longblob'	                    => array( 'type' => 'string', 'binary' => true, 'character_maximum_length' => '4294967295' ),
+            'longtext'	                    => array( 'type' => 'string', 'character_maximum_length' => '4294967295' ),
+            'mediumblob'	                => array( 'type' => 'string', 'binary' => true, 'character_maximum_length' => '16777215' ),
+            'mediumint'	                    => array( 'type' => 'int', 'min' => '-8388608', 'max' => '8388607' ),
+            'mediumint unsigned'	        => array( 'type' => 'int', 'min' => '0', 'max' => '16777215' ),
+            'mediumtext'	                => array( 'type' => 'string', 'character_maximum_length' => '16777215' ),
+            'national varchar'	            => array( 'type' => 'string' ),
+            'numeric unsigned'	            => array( 'type' => 'float', 'exact' => true, 'min' => '0' ),
+            'nvarchar'	                    => array( 'type' => 'string' ),
+            'point'	                        => array( 'type' => 'string', 'binary' => true ),
+            'real unsigned'	                => array( 'type' => 'float', 'min' => '0' ),
+            'set'	                        => array( 'type' => 'string' ),
+            'smallint unsigned'	            => array( 'type' => 'int', 'min' => '0', 'max' => '65535' ),
+            'text'	                        => array( 'type' => 'string', 'character_maximum_length' => '65535' ),
+            'tinyblob'	                    => array( 'type' => 'string', 'binary' => true, 'character_maximum_length' => '255' ),
+            'tinyint'	                    => array( 'type' => 'int', 'min' => '-128', 'max' => '127' ),
+            'tinyint unsigned'	            => array( 'type' => 'int', 'min' => '0', 'max' => '255' ),
+            'tinytext'	                    => array( 'type' => 'string', 'character_maximum_length' => '255' ),
+            'year'	                        => array( 'type' => 'string' )
         );
 
         $type = \str_replace(' zerofill', '', $type);
@@ -709,7 +711,6 @@ class MySQL extends \Database\Driver
             }
         }
 
-
         return $this->_quote_identifier($value);
     }
 
@@ -751,9 +752,9 @@ class MySQL extends \Database\Driver
     protected function _quote_identifier($column)
     {
         if (\is_array($column))
-        {
-            list($column, $alias) = $column;
-        }
+		{
+			list($column, $alias) = $column;
+		}
 
         if ( \is_object($column) )
         {
@@ -773,68 +774,68 @@ class MySQL extends \Database\Driver
                 $column = $this->_quote_identifier((string)$column);
             }
         }
-        else
-        {
-            # 转换为字符串
-            $column = \trim((string)$column);
+		else
+		{
+			# 转换为字符串
+			$column = \trim((string)$column);
 
-            if ( \preg_match('#^(.*) AS (.*)$#i',$column,$m) )
-            {
-                $column = $m[1];
-                $alias  = $m[2];
-            }
+			if ( \preg_match('#^(.*) AS (.*)$#i',$column,$m) )
+			{
+			    $column = $m[1];
+			    $alias  = $m[2];
+			}
 
-            if ($column === '*')
-            {
-                return $column;
-            }
-            elseif (\strpos($column, '"') !== false)
-            {
-                // Quote the column in FUNC("column") identifiers
-                $column = \preg_replace('/"(.+?)"/e', '$this->_quote_identifier("$1")', $column);
-            }
-            elseif (\strpos($column, '.') !== false)
-            {
-                $parts = \explode('.', $column);
+			if ($column === '*')
+			{
+				return $column;
+			}
+			elseif (\strpos($column, '"') !== false)
+			{
+				// Quote the column in FUNC("column") identifiers
+				$column = \preg_replace('/"(.+?)"/e', '$this->_quote_identifier("$1")', $column);
+			}
+			elseif (\strpos($column, '.') !== false)
+			{
+				$parts = \explode('.', $column);
 
-                $prefix = $this->config['table_prefix'];
-                if ($prefix)
-                {
-                    // Get the offset of the table name, 2nd-to-last part
-                    $offset = \count($parts) - 2;
+				$prefix = $this->config['table_prefix'];
+				if ($prefix)
+				{
+					// Get the offset of the table name, 2nd-to-last part
+					$offset = \count($parts) - 2;
 
                     if ( !$this->_as_table || !\in_array($parts[$offset],$this->_as_table) )
                     {
                         $parts[$offset] = $prefix . $parts[$offset];
                     }
-                }
+				}
 
-                foreach ($parts as & $part)
-                {
-                    if ($part !== '*')
-                    {
-                        // Quote each of the parts
-                        $part = $this->_identifier.$part.$this->_identifier;
-                    }
-                }
+				foreach ($parts as & $part)
+				{
+					if ($part !== '*')
+					{
+						// Quote each of the parts
+						$part = $this->_identifier.$part.$this->_identifier;
+					}
+				}
 
-                $column = \implode('.', $parts);
-            }
-            else
-            {
-                $column = $this->_identifier.$column.$this->_identifier;
-            }
-        }
+				$column = \implode('.', $parts);
+			}
+			else
+			{
+				$column = $this->_identifier.$column.$this->_identifier;
+			}
+		}
 
-        if ( isset($alias) )
-        {
-            $column .= ' AS '.$this->_identifier.$alias.$this->_identifier;
-        }
+		if ( isset($alias) )
+		{
+			$column .= ' AS '.$this->_identifier.$alias.$this->_identifier;
+		}
 
-        # 切换编码
-        $this->_change_charset($column);
+		# 切换编码
+		$this->_change_charset($column);
 
-        return $column;
+		return $column;
     }
 
     protected function _compile_selete($builder)
