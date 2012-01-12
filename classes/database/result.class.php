@@ -11,7 +11,7 @@ namespace Core\Database;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class Result implements \Countable, \Iterator, \SeekableIterator, \ArrayAccess
+abstract class Result implements \Countable, \Iterator, \SeekableIterator, \ArrayAccess
 {
 
     protected $_config;

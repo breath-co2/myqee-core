@@ -119,6 +119,13 @@ define('EXT', '.php');
 define('N', "\r\n");
 
 /**
+ * 服务器是否支持mbstring
+ *
+ * @var boolean
+ */
+define('IS_MBSTRING',extension_loaded('mbstring')?true:false);
+
+/**
  * 输出语言包
  *
  * [strtr](http://php.net/strtr) is used for replacing parameters.
@@ -239,7 +246,13 @@ final class Bootstrap
                 self::show_error('Please rename the file config.new.php to config.php');
             }
             $config = array();
-            self::include_config_file($config,DIR_SYSTEM.'config.php');
+
+            $include_config_file = function ( & $config, $file )
+            {
+                include $file;
+            };
+            $include_config_file($config,DIR_SYSTEM.'config.php');
+
             self::$config = $config;
 
             if (!isset(self::$config['core']['charset']))self::$config['core']['charset'] = 'utf-8';
@@ -265,45 +278,100 @@ final class Bootstrap
             # 如果有autoload目录，则设置加载目录
             if ( isset(self::$config['core']['libraries']['autoload']) && is_array(self::$config['core']['libraries']['autoload']) && self::$config['core']['libraries']['autoload'] )
             {
-                $include_path = array
-                (
-                    '\\' => DIR_APPLICATION
-                );
-
                 foreach (self::$config['core']['libraries']['autoload'] as $library_name)
                 {
                     if (!$library_name)continue;
 
-                    $library_name = strtolower(trim(str_replace('/','\\',$library_name),' \\'));
-                    if ( !preg_match('#^[a-z_][a-z0-9_]*\\\[a-z_][a-z0-9_]*$#i',$library_name) )
+                    try
                     {
-                        self::show_error('指定的类“'.$library_name.'”不符合规范');
+                        self::import_library($library_name);
                     }
-                    $path = str_replace('\\',DS,$library_name);
-
-                    $namespace = '\\library\\'.$library_name.'\\';
-                    if (isset($include_path[$namespace]))continue;
-
-                    if ( is_dir(DIR_LIBRARY.$path.DS) )
+                    catch (Exception $e)
                     {
-                        $include_path[$namespace] = DIR_LIBRARY.$path.DS;
+                        self::show_error($e->getMessage());
                     }
                 }
-
-                # 系统目录
-                $include_path['\\core\\'] = DIR_CORE;
-
-                // 替换默认include path
-                self::$include_path = $include_path;
             }
-
 
             Core::setup();
         }
 
         if ($auto_execute)
         {
-            $path_info = self::get_pathinfo();
+            $get_pathinfo = function()
+            {
+                # 处理base_url
+                if (null===Bootstrap::$base_url && isset($_SERVER["SCRIPT_NAME"])&&$_SERVER["SCRIPT_NAME"])
+                {
+                    $base_url_len = strrpos($_SERVER["SCRIPT_NAME"], '/');
+                    if ($base_url_len)
+                    {
+                        $base_url = substr($_SERVER["SCRIPT_NAME"], 0, $base_url_len);
+                        if (preg_match('#^(.*)/wwwroot$#', $base_url, $m))
+                        {
+                            # 特殊处理wwwroot目录
+                            $base_url = $m[1];
+                            $base_url_len = strlen($base_url);
+                        }
+
+                        if (strtolower(substr($_SERVER['REQUEST_URI'], 0, $base_url_len))==strtolower($base_url))
+                        {
+                            Bootstrap::$base_url = $base_url;
+                        }
+                    }
+                }
+
+                if (isset($_SERVER['PATH_INFO']))
+                {
+                    $pathinfo = $_SERVER["PATH_INFO"];
+                }
+                else
+                {
+                    if (isset($_SERVER["PATH_TRANSLATED"]))
+                    {
+                        list($null, $pathinfo) = explode('index.php', $_SERVER["PATH_TRANSLATED"], 2);
+                    }
+                    elseif (isset($_SERVER['REQUEST_URI']))
+                    {
+                        $request_uri = $_SERVER['REQUEST_URI'];
+                        if (Bootstrap::$base_url)
+                        {
+                            $request_uri = substr($request_uri, strlen(Bootstrap::$base_url));
+                        }
+                        // 移除查询参数
+                        list($pathinfo) = explode('?', $request_uri, 2);
+                    }
+                    elseif (isset($_SERVER['PHP_SELF']))
+                    {
+                        $pathinfo = $_SERVER['PHP_SELF'];
+                    }
+                    elseif (isset($_SERVER['REDIRECT_URL']))
+                    {
+                        $pathinfo = $_SERVER['REDIRECT_URL'];
+                    }
+                    else
+                    {
+                        $pathinfo = false;
+                    }
+                }
+
+                # 过滤pathinfo传入进来的服务器默认页
+                if ( false!==$pathinfo && ($indexpagelen = strlen(Bootstrap::$config['core']['server_index_page'])) && substr($pathinfo, -1-$indexpagelen) == '/'.Bootstrap::$config['core']['server_index_page'] )
+                {
+                    $pathinfo = substr($pathinfo, 0, -$indexpagelen);
+                }
+                $pathinfo = trim($pathinfo);
+
+                if (!isset($_SERVER["PATH_INFO"]))
+                {
+                    $_SERVER["PATH_INFO"] = $pathinfo;
+                }
+
+                return $pathinfo;
+            };
+
+            $path_info = $get_pathinfo();
+            unset($get_pathinfo);
 
             if (!IS_CLI)ob_start();
 
@@ -600,8 +668,16 @@ final class Bootstrap
                 {
                     if (!class_exists($class_name,false))
                     {
+                        $abstract = '';
+                        $rf = new ReflectionClass($ns_class_name);
+                        if ( $rf->isAbstract() )
+                        {
+                            $abstract = 'abstract ';
+                        }
+                        unset($rf);
+
                         $class_str = array_pop($old_class_arr);
-                        $str = 'namespace '.implode('\\', $old_class_arr).'{class '.$class_str.' extends '.$ns_class_name.'{}}';
+                        $str = 'namespace '.implode('\\', $old_class_arr).'{'.$abstract.'class '.$class_str.' extends '.$ns_class_name.'{}}';
                         eval($str);
                     }
 
@@ -649,92 +725,68 @@ final class Bootstrap
         }
     }
 
+    /**
+     * 导入指定类库
+     *
+     * 导入的格式必须是类似 BigClass/SubClass 的形式，否则会抛出异常，例如: MyQEE/CMS , MyQEE/SAE 等等
+     *
+     * @param string $library_name 指定类库
+     * @return boolean
+     * @throws \Exception
+     */
+    public static function import_library($library_name)
+    {
+        if (!$library_name) return false;
+
+        $library_name = strtolower(trim(str_replace('/', '\\', $library_name), ' \\'));
+
+        if (!preg_match('#^[a-z_][a-z0-9_]*\\\[a-z_][a-z0-9_]*$#i', $library_name))
+        {
+            throw new Exception('指定的类“'.$library_name.'”不符合规范');
+        }
+
+        $ns = '\\library\\'.$library_name.'\\';
+
+        if ( !isset(self::$include_path[$ns]) )
+        {
+            $dir = DIR_LIBRARY.str_replace('\\', DS, $library_name).DS;
+
+            if (is_dir($dir))
+            {
+                # 开发目录
+                $appliction = array( '\\' => array_shift(self::$include_path) );
+
+                # 加载配置（初始化）文件
+                $config = $dir . 'config'.EXT;
+                if (is_file($config))
+                {
+                    $include_file = function ($file)
+                        {
+                        include $file;
+                    };
+
+                    $include_file($config);
+                }
+
+                # 合并目录
+                self::$include_path =array_merge($appliction, array($ns=>$dir), self::$include_path);
+
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        else
+        {
+            return true;
+        }
+    }
+
     private static function show_error($msg)
     {
         echo __($msg);
         exit;
     }
-
-    private static function include_config_file(&$config,$file)
-    {
-        include $file;
-    }
-
-    /**
-     * 获取path_info
-     *
-     * @return string
-     */
-    private static function get_pathinfo()
-    {
-        # 处理base_url
-        if (null===self::$base_url && isset($_SERVER["SCRIPT_NAME"]) && $_SERVER["SCRIPT_NAME"])
-        {
-            $base_url_len = strrpos($_SERVER["SCRIPT_NAME"],'/');
-            if ( $base_url_len )
-            {
-                $base_url = substr($_SERVER["SCRIPT_NAME"], 0 , $base_url_len);
-                if ( preg_match('#^(.*)/wwwroot$#',$base_url,$m) )
-                {
-                    # 特殊处理wwwroot目录
-                    $base_url = $m[1];
-                    $base_url_len = strlen($base_url);
-                }
-
-                if (strtolower(substr($_SERVER['REQUEST_URI'],0,$base_url_len))==strtolower($base_url))
-                {
-                    self::$base_url = $base_url;
-                }
-            }
-        }
-
-        if (isset($_SERVER['PATH_INFO']))
-        {
-            $pathinfo = $_SERVER["PATH_INFO"];
-        }
-        else
-        {
-            if (isset($_SERVER["PATH_TRANSLATED"]))
-            {
-                list($null,$pathinfo) = explode('index.php',$_SERVER["PATH_TRANSLATED"],2);
-            }
-            elseif (isset($_SERVER['REQUEST_URI']))
-            {
-                $request_uri = $_SERVER['REQUEST_URI'];
-                if ( self::$base_url )
-                {
-                    $request_uri = substr($request_uri, strlen(self::$base_url));
-                }
-                // 移除查询参数
-                list ($pathinfo) = explode('?',$request_uri,2);
-            }
-            elseif (isset($_SERVER['PHP_SELF']))
-            {
-                $pathinfo = $_SERVER['PHP_SELF'];
-            }
-            elseif (isset($_SERVER['REDIRECT_URL']))
-            {
-                $pathinfo = $_SERVER['REDIRECT_URL'];
-            }
-            else
-            {
-                $pathinfo = false;
-            }
-        }
-
-        # 过滤pathinfo传入进来的服务器默认页
-        if (false!==$pathinfo && ($indexpagelen=strlen(self::$config['core']['server_index_page'])) && substr($pathinfo, -1-$indexpagelen)=='/'.self::$config['core']['server_index_page'] )
-        {
-            $pathinfo = substr($pathinfo,0,-$indexpagelen);
-        }
-        $pathinfo = trim($pathinfo);
-
-        if (!isset($_SERVER["PATH_INFO"]))
-        {
-            $_SERVER["PATH_INFO"] = $pathinfo;
-        }
-
-        return $pathinfo;
-    }
-
 }

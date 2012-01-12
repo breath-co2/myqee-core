@@ -264,10 +264,10 @@ class HttpIO
                 static::$_REQUEST_OLD = $_REQUEST;
 
                 # XSS安全处理
-                $_GET = static::htmlspecialchars($_GET);
-                $_POST = static::htmlspecialchars($_POST);
-                $_COOKIE = static::htmlspecialchars($_COOKIE);
-                $_REQUEST = static::htmlspecialchars($_REQUEST);
+                $_GET = static::sanitize($_GET);
+                $_POST = static::sanitize($_POST);
+                $_COOKIE = static::sanitize($_COOKIE);
+                $_REQUEST = static::sanitize($_REQUEST);
 
                 # 隐射
                 static::$_GET = & $_GET;
@@ -341,12 +341,12 @@ class HttpIO
         if ( ! $type )
         {
             # 未安全过滤的数据
-            $data = static::htmlspecialchars_decode($data);
+            $data = static::sanitize_decode($data);
         }
         elseif ( $type == static::PARAM_TYPE_URL )
         {
             # URL 格式数据
-            $data = static::htmlspecialchars_decode($data);
+            $data = static::sanitize_decode($data);
             $data = \str_replace(array('<', '>', '\'', "\"", '\''), array('%3C', '%3E', '%27', '%22', '%5C'), $data);
         }
         return $data;
@@ -357,7 +357,7 @@ class HttpIO
      *
      * @param $str
      */
-    public static function htmlspecialchars($str)
+    public static function sanitize($str)
     {
         if ( null === $str ) return null;
         if ( \is_array($str) || \is_object($str) )
@@ -365,7 +365,7 @@ class HttpIO
             $data = array();
             foreach ( $str as $k => $v )
             {
-                $data[$k] = static::htmlspecialchars($v);
+                $data[$k] = static::sanitize($v);
             }
         }
         else
@@ -375,6 +375,7 @@ class HttpIO
             {
                 $str = \str_replace(array("\r\n", "\r"), "\n", $str);
             }
+
             $data = \htmlspecialchars($str);
         }
         return $data;
@@ -385,14 +386,14 @@ class HttpIO
      *
      * @param $str
      */
-    public static function htmlspecialchars_decode($str)
+    public static function sanitize_decode($str)
     {
         if ( null === $str ) return null;
         if ( \is_array($str) || \is_object($str) )
         {
             foreach ( $str as $k => $v )
             {
-                $str[$k] = static::htmlspecialchars_decode($v);
+                $str[$k] = static::sanitize_decode($v);
             }
         }
         else

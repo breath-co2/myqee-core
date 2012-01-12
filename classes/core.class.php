@@ -57,13 +57,6 @@ abstract class Core
              */
             \define('IS_ADMIN_MODE', false);
 
-            /**
-             * 服务器是否支持mbstring
-             *
-             * @var boolean
-             */
-            \define('IS_MBSTRING',extension_loaded('mbstring')?true:false);
-
             $is_online_debug = function()
             {
                 if (!isset($_COOKIE['_debug_open'])) return false;
@@ -164,7 +157,10 @@ abstract class Core
         \register_shutdown_function(
             function()
             {
-                \HttpIO::send_headers();
+                if (!\IS_CLI)
+                {
+                    \HttpIO::send_headers();
+                }
 
                 echo '<br><pre>';
                 echo \microtime(1)-\START_TIME;
@@ -172,7 +168,10 @@ abstract class Core
                 echo "\n";
                 echo ((\memory_get_usage()-\START_MEMORY)/1024).'kb';
                 echo "\n";
+                echo (\memory_get_usage()/1024).'kb';
+                echo "\n";
 
+                echo '<br><hr>include path<br>';
                 \print_r(\Bootstrap::$include_path);
 
                 \print_r(\get_included_files());
@@ -189,11 +188,34 @@ abstract class Core
     }
 
     /**
-     * 获取当前配置
+     * 获取指定key的配置
+     *
+     * 若不传key，则返回Core_Config对象，可获取动态配置，例如Core::config()->get();
+     *
+     * @param string $key
+     * @param mixed $default 在没有获取到config时返回的值,例如 \Core::config('test','abc'); 时当尝试获取test的config时没有，则返回abc
+     * @return mixed|\Core\Config
      */
-    public static function config()
+    public static function config($key = null,$default=null)
     {
+        if ( null===$key )
+        {
+            return static::factory('\\Core\\Config');
+        }
 
+        $key_array = explode('.', $key);
+        $key = array_shift($key_array);
+
+        if (!isset(\Bootstrap::$config[$key]))return $default;
+
+        $v = \Bootstrap::$config[$key];
+        foreach ($key_array as $i)
+        {
+            if (!isset($v[$i]))return $default;
+            $v = $v[$i];
+        }
+
+        return $v;
     }
 
     /**
@@ -207,40 +229,7 @@ abstract class Core
      */
     public static function import_library($library_name)
     {
-        if (!$library_name) return false;
-
-        $library_name = \strtolower(\trim(\str_replace('/', '\\', $library_name), ' \\'));
-
-        if (!\preg_match('#^[a-z_][a-z0-9_]*\\\[a-z_][a-z0-9_]*$#i', $library_name))
-        {
-            throw new \Exception('指定的类不符合规范');
-        }
-
-        $ns = '\\library\\'.$library_name.'\\';
-
-        if (!isset(\Bootstrap::$include_path[$ns]))
-        {
-            $dir = \DIR_LIBRARY.\str_replace('\\', \DS, $library_name).\DS;
-
-            if (\is_dir($dir))
-            {
-                # 开发目录
-                $appliction = array( '\\' =>\array_shift(\Bootstrap::$include_path) );
-
-                # 合并目录
-                \Bootstrap::$include_path =\array_merge($appliction, array($ns=>$dir), \Bootstrap::$include_path);
-
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-        else
-        {
-            return true;
-        }
+        return \Bootstrap::import_library($library_name);
     }
 
     /**
