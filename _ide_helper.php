@@ -19,8 +19,6 @@ namespace
 
 namespace Database
 {
-    exit;
-
     class Driver extends \Core\Database\Driver{}
 
     class Result extends \Core\Database\Result{}
@@ -30,4 +28,17 @@ namespace Database
     class QueryBuilder extends \Core\Database\QueryBuilder{}
 
     class Expression extends \Core\Database\Expression{}
+}
+
+namespace OOP
+{
+    class ORM extends \Core\OOP\ORM{}
+}
+
+namespace OOP\ORM
+{
+    class Data extends \Core\OOP\ORM\Data{}
+    class Parse extends \Core\OOP\ORM\Parse{}
+    class Result extends \Core\OOP\ORM\Result{}
+    class Index extends \Core\OOP\ORM\Index{}
 }
