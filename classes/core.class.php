@@ -511,6 +511,55 @@ abstract class Core
         return $debug;
     }
 
+    /**
+     * 返回一个用.表示的字符串的key对应数组的内容
+     *
+     * 例如
+     *    $arr = array(
+     *        'a' => array(
+     *        	  'b' => 123,
+     *            'c' => array(
+     *                456,
+     *            ),
+     *        ),
+     *    );
+     *    Core::key_string($arr,'a.b');  //返回123
+     *
+     *    Core::key_string($arr,'a');
+     *    // 返回
+     *    array(
+     *       'b' => 123,
+     *       'c' => array(
+     *          456,
+     *        ),
+     *    );
+     *
+     *    Core::key_string($arr,'a.c.0');  //返回456
+     *
+     *    Core::key_string($arr,'a.d');  //返回null
+     *
+     * @param array $arr
+     * @param string $key
+     * @return fixed
+     */
+    public static function key_string($arr, $key)
+    {
+        if (!is_array($arr))return null;
+        $keyArr = explode('.', $key);
+        foreach ( $keyArr as $key )
+        {
+            if ( isset($arr[$key]) )
+            {
+                $arr = $arr[$key];
+            }
+            else
+            {
+                return null;
+            }
+        }
+        return $arr;
+    }
+
     public static function shutdown_handler()
     {
         $error = \error_get_last();

@@ -3,6 +3,12 @@ namespace
 {
     exit;
 
+    class Arr extends \Core\Arr{}
+    class Auth extends \Core\Auth{}
+
+    class Cache extends \Core\Cache{}
+    class Cookie extends \Core\Cookie{}
+
     class Controller extends \Core\Controller{}
 
     class Database extends \Core\Database{}
@@ -10,24 +16,40 @@ namespace
     class Session extends \Core\Session{}
 
     class HttpIO extends \Core\HttpIO{}
+    class HttpGet extends \Core\HttpGet{}
+    class html extends \Core\html{}
 
     class I18n extends \Core\I18n{}
 
     class View extends \Core\View{}
 }
 
+namespace Cache
+{
+    class Database extends \Core\Cache\Database{}
+    class File extends \Core\Cache\File{}
+    class Memcache extends \Core\Cache\Memcache{}
+}
+
 
 namespace Database
 {
     class Driver extends \Core\Database\Driver{}
-
     class Result extends \Core\Database\Result{}
-
     class Transaction extends \Core\Database\Transaction{}
-
     class QueryBuilder extends \Core\Database\QueryBuilder{}
-
     class Expression extends \Core\Database\Expression{}
+}
+
+namespace HttpGet
+{
+    class Result extends \Core\HttpGet\Result{}
+}
+
+namespace HttpGet\Driver
+{
+    class Curl extends \Core\HttpGet\Driver\Curl{}
+    class Fsock extends \Core\HttpGet\Driver\Fsock{}
 }
 
 namespace OOP
@@ -42,3 +64,18 @@ namespace OOP\ORM
     class Result extends \Core\OOP\ORM\Result{}
     class Index extends \Core\OOP\ORM\Index{}
 }
+
+namespace OOP\ORM\Finder
+{
+    class DB extends \Core\OOP\ORM\Finder\DB{}
+    class HttpGet extends \Core\OOP\ORM\Finder\HttpGet{}
+}
+
+namespace Session
+{
+    class Cache extends \Core\Session\Cache{}
+    class Default_Driver extends \Core\Session\Default_Driver{}
+}
+
+
+

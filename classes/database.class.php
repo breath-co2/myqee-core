@@ -151,7 +151,7 @@ class Database extends \Database\QueryBuilder
     /**
     * 获取驱动引擎对象
     *
-    * @return \Database_Driver_MySQLI
+    * @return \Database\Driver\MySQLI
     */
     public function driver()
     {
@@ -172,7 +172,7 @@ class Database extends \Database\QueryBuilder
     * @param string $sql
     * @param boolean $as_object 返回对象名称 默认false，即返回数组
     * @param boolean $use_master 是否使用主数据库，不设置则自动判断,对更新的SQL无效
-    * @return \Database_Driver_MySQLI_Result
+    * @return \Database\Driver\MySQLI\Result
     */
     public function query($sql, $as_object = false, $use_master = null)
     {
@@ -186,7 +186,7 @@ class Database extends \Database\QueryBuilder
     /**
      * 返回当前表前缀
      *
-     * @return  string
+     * @return string
      */
     public function table_prefix()
     {
@@ -224,7 +224,7 @@ class Database extends \Database\QueryBuilder
      *
      * @param boolean $as_object 返回对象名称 默认false，即返回数组
      * @param boolean $use_master 是否使用主数据库，不设置则自动判断
-     * @return \Database_Driver_MySQLI_Result
+     * @return \Database\Driver\MySQLI\Result
      */
     public function get($as_object = false, $use_master = null)
     {
@@ -317,8 +317,8 @@ class Database extends \Database\QueryBuilder
     /**
     * 统计指定条件的数量
         *
-        * @param   mixed	table name string or array(query, alias)
-        * @return  integer
+        * @param mixed table name string or array(query, alias)
+        * @return integer
         */
     public function count_records($table = null, $where = null)
     {
@@ -434,7 +434,7 @@ class Database extends \Database\QueryBuilder
     /**
      * 解析DSN路径格式
      *
-     * @param  string  DSN string
+     * @param  string DSN string
      * @return array
      */
     public static function parse_dsn($dsn)
