@@ -112,11 +112,11 @@ define('IS_CLI',(PHP_SAPI==='cli'));
 define('EXT', '.php');
 
 /**
- * Window换行符
+ * CRLF换行符
  *
  * @var string
  */
-define('N', "\r\n");
+define('CRLF', "\r\n");
 
 /**
  * 服务器是否支持mbstring
@@ -177,7 +177,8 @@ final class Bootstrap
      *
      * @var array
      */
-    public static $include_path = array(
+    public static $include_path = array
+    (
         '\\'       => DIR_APPLICATION,
         '\\core\\' => DIR_CORE,
     );
@@ -334,6 +335,7 @@ final class Bootstrap
                     elseif (isset($_SERVER['REQUEST_URI']))
                     {
                         $request_uri = $_SERVER['REQUEST_URI'];
+
                         if (Bootstrap::$base_url)
                         {
                             $request_uri = substr($request_uri, strlen(Bootstrap::$base_url));
@@ -449,23 +451,36 @@ final class Bootstrap
                 {
                     $args = array();
                 }
+
+                $id = null;
                 $tmp_class = array_shift($args);
-                if (0===strlen($tmp_class))
+
+                if ( 0===strlen($tmp_class) )
                 {
                     $tmp_class = 'index';
                 }
+                elseif ( is_numeric($tmp_class) )
+                {
+                    $id = $tmp_class;
+                    $tmp_class = '_id';
+                }
+
+                $path_str = str_replace('/','\\',ltrim($path,'/'));
 
                 foreach ($all_path as $tmp_arr)
                 {
                     list($ns,$tmp_path) = $tmp_arr;
                     $tmpfile = $tmp_path.$tmp_class.'.controller.php';
                     $find_log[] = $tmpfile;
+
                     if (is_file($tmpfile))
                     {
-                        $found = array(
+                        $found = array
+                        (
                             'file'      => $tmpfile,
-                            'class'     => str_replace('/','\\',ltrim($path,'/')).$tmp_class,
+                            'class'     => $path_str.$tmp_class,
                             'args'      => $args,
+                            'id'        => $id,
                             'namespace' => $ns,
                         );
                         break 2;
@@ -526,10 +541,10 @@ final class Bootstrap
                 }
 
                 # 将参数传递给控制器
-                if (method_exists($controller,'_callback_set_vars'))
-                {
-                    $controller->_callback_set_vars($arguments);
-                }
+                $controller->action = $action_name;
+                $controller->controller = $found['class'];
+                $controller->arguments = $arguments;
+                $controller->id = $found['id'];
 
                 # 前置方法
                 if (method_exists($controller,'before'))

@@ -33,23 +33,18 @@ class Controller
      */
     public $action;
 
+    /**
+     * 当前控制器信息ID
+     *
+     * 例如访问地址为 http://localhost/123/test/ 控制器为_id.controller.php ,方法为test，则$this->id=123，系统会在初始化控制器时调用 $this->_callback_set_vars 方法进行设置
+     *
+     * @var int
+     */
+    public $id;
+
     public function __construct()
     {
 
-    }
-
-    /**
-     * 用于给系统调用设置对象变量，系统内部调用
-     *
-     * @param array $data
-     */
-    public function _callback_set_vars($data)
-    {
-        # 将路由信息传入到控制器变量中
-        foreach ( $data as $key => $value )
-        {
-            $this->$key = $value;
-        }
     }
 
     /**
