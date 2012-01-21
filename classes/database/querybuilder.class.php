@@ -68,7 +68,7 @@ class QueryBuilder
      * @param   ...
      * @return \Database
      */
-    public function select($columns = NULL)
+    public function select($columns = null)
     {
         if ( \func_num_args() > 1 )
         {
@@ -249,7 +249,7 @@ class QueryBuilder
      * @param   string  join type (LEFT, RIGHT, INNER, etc)
      * @return \Database
      */
-    public function join($table, $type = NULL)
+    public function join($table, $type = null)
     {
         $this->_builder['join'][] = array('table' => $table, 'type' => $type, 'on' => array());
 
@@ -301,7 +301,7 @@ class QueryBuilder
      * @param   mixed   column value
      * @return \Database
      */
-    public function having($column, $value = NULL, $op = '=')
+    public function having($column, $value = null, $op = '=')
     {
         return $this->and_having($column, $value, $op);
     }
@@ -314,7 +314,7 @@ class QueryBuilder
      * @param   mixed   column value
      * @return \Database
      */
-    public function and_having($column, $value = NULL, $op = '=')
+    public function and_having($column, $value = null, $op = '=')
     {
         $this->_builder['having'][] = array('AND' => array($column, $op, $value));
 
@@ -329,7 +329,7 @@ class QueryBuilder
      * @param   mixed   column value
      * @return \Database
      */
-    public function or_having($column, $value = NULL, $op = '=')
+    public function or_having($column, $value = null, $op = '=')
     {
         $this->_builder['having'][] = array('OR' => array($column, $op, $value));
 

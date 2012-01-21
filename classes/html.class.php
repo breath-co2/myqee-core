@@ -50,7 +50,7 @@ class html
     /**
      * @var  boolean  automatically target external URLs to a new window?
      */
-    public static $windowed_urls = FALSE;
+    public static $windowed_urls = false;
 
     /**
      * Convert special characters to HTML entities. All untrusted content
@@ -62,7 +62,7 @@ class html
      * @param   boolean  encode existing entities
      * @return  string
      */
-    public static function chars($value, $double_encode = TRUE)
+    public static function chars($value, $double_encode = true)
     {
         return \htmlspecialchars((string)$value, \ENT_QUOTES, \Core::$charset, $double_encode);
     }
@@ -78,7 +78,7 @@ class html
      * @param   boolean  encode existing entities
      * @return  string
      */
-    public static function entities($value, $double_encode = TRUE)
+    public static function entities($value, $double_encode = true)
     {
         return \htmlentities((string)$value, \ENT_QUOTES, \Core::$charset, $double_encode);
     }
@@ -108,13 +108,13 @@ class html
         if ( $uri === '' )
         {
             // Only use the base URL
-            $uri = \Core::url()->base(FALSE, $protocol);
+            $uri = \Core::url()->base(false, $protocol);
         }
         else
         {
-            if ( \strpos($uri, '://') !== FALSE )
+            if ( \strpos($uri, '://') !== false )
             {
-                if ( static::$windowed_urls === TRUE and empty($attributes['target']) )
+                if ( static::$windowed_urls === true and empty($attributes['target']) )
                 {
                     // Make the link open in a new window
                     $attributes['target'] = '_blank';
@@ -153,7 +153,7 @@ class html
             $title = \basename($file);
         }
         // Add the file link to the attributes
-        $attributes['href'] = \Core::url()->base(FALSE, $protocol) . $file;
+        $attributes['href'] = \Core::url()->base(false, $protocol) . $file;
         return '<a' . static::attributes($attributes) . '>' . $title . '</a>';
     }
 
@@ -245,9 +245,9 @@ class html
      * @uses	URL::base
      * @uses	\html::attributes
      */
-    public static function style($file, array $attributes = null, $index = FALSE)
+    public static function style($file, array $attributes = null, $index = false)
     {
-        if ( \strpos($file, '://') === FALSE )
+        if ( \strpos($file, '://') === false )
         {
             // Add the base URL
             $file = \Core::url()->base($index) . $file;
@@ -273,9 +273,9 @@ class html
      * @uses	URL::base
      * @uses	\html::attributes
      */
-    public static function script($file, array $attributes = null, $index = FALSE)
+    public static function script($file, array $attributes = null, $index = false)
     {
-        if ( \strpos($file, '://') === FALSE )
+        if ( \strpos($file, '://') === false )
         {
             // Add the base URL
             $file = \Core::url()->base($index) . $file;
@@ -298,9 +298,9 @@ class html
      * @uses	URL::base
      * @uses	\html::attributes
      */
-    public static function image($file, array $attributes = null, $index = FALSE)
+    public static function image($file, array $attributes = null, $index = false)
     {
-        if ( \strpos($file, '://') === FALSE )
+        if ( \strpos($file, '://') === false )
         {
             // Add the base URL
             $file = \Core::url()->base($index) . $file;

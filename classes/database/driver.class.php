@@ -133,7 +133,7 @@ abstract class Driver
     /**
      * Quote a value for an SQL query.
      *
-     * $db->quote(NULL);   // 'NULL'
+     * $db->quote(null);   // 'NULL'
      * $db->quote(10);     // 10
      * $db->quote('fred'); // 'fred'
      *

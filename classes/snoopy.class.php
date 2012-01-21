@@ -1014,8 +1014,8 @@ class Snoopy
     protected function _set_downloadfile($URI, $downfile)
     {
         //下载文件
-        if ( ! $downfile ) return FALSE;
-        if ( $downfile === TRUE )
+        if ( ! $downfile ) return false;
+        if ( $downfile === true )
         {
             $path = $this->$downfile_path !== false ? $this->$downfile_path : Core::config('core.upload.filepath');
             $selfpath = $this->downfile_selfpath !== false ? $this->downfile_selfpath : Core::config('core.upload.selfpath');

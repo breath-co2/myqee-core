@@ -171,7 +171,7 @@ class Form
     {
         $attributes['type'] = 'checkbox';
 
-        if ( $checked === TRUE )
+        if ( $checked === true )
         {
             // Make the checkbox active
             $attributes['checked'] = 'checked';
@@ -197,7 +197,7 @@ class Form
     {
         $attributes['type'] = 'radio';
 
-        if ( $checked === TRUE )
+        if ( $checked === true )
         {
             // Make the radio active
             $attributes['checked'] = 'checked';

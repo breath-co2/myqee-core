@@ -24,7 +24,7 @@ class Arr extends \ArrayIterator
 	 *     // Returns true
 	 *     static::is_assoc(array('username' => 'john.doe'));
 	 *
-	 *     // Returns FALSE
+	 *     // Returns false
 	 *     static::is_assoc('foo', 'bar');
 	 *
 	 * @param   array   array to check
@@ -47,8 +47,8 @@ class Arr extends \ArrayIterator
 	 *     static::is_array(array());
 	 *     static::is_array(new ArrayObject);
 	 *
-	 *     // Returns FALSE
-	 *     static::is_array(FALSE);
+	 *     // Returns false
+	 *     static::is_array(false);
 	 *     static::is_array('not an array!');
 	 *     static::is_array(Database::instance());
 	 *
@@ -89,7 +89,7 @@ class Arr extends \ArrayIterator
 	 * @param   string  key path delimiter
 	 * @return  mixed
 	 */
-	public static function path($array, $path, $default = NULL, $delimiter = NULL)
+	public static function path($array, $path, $default = null, $delimiter = null)
 	{
 		if ( ! static::is_array($array))
 		{
@@ -110,7 +110,7 @@ class Arr extends \ArrayIterator
 				return $array[$path];
 			}
 
-			if ($delimiter === NULL)
+			if ($delimiter === null)
 			{
 				// Use the default delimiter
 				$delimiter = static::$delimiter;
@@ -202,7 +202,7 @@ class Arr extends \ArrayIterator
 	* @param mixed   $value     Value to set
 	* @param string  $delimiter Path delimiter
 	*/
-	public static function set_path( & $array, $path, $value, $delimiter = NULL)
+	public static function set_path( & $array, $path, $value, $delimiter = null)
 	{
 		if ( ! $delimiter)
 		{
@@ -275,7 +275,7 @@ class Arr extends \ArrayIterator
 	 * @param   mixed   default value
 	 * @return  mixed
 	 */
-	public static function get($array, $key, $default = NULL)
+	public static function get($array, $key, $default = null)
 	{
 		return isset($array[$key]) ? $array[$key] : $default;
 	}
@@ -292,7 +292,7 @@ class Arr extends \ArrayIterator
 	 * @param   mixed   default value
 	 * @return  array
 	 */
-	public static function extract($array, array $keys, $default = NULL)
+	public static function extract($array, array $keys, $default = null)
 	{
 		$found = array();
 		foreach ($keys as $key)
@@ -510,7 +510,7 @@ class Arr extends \ArrayIterator
 	public static function callback($str)
 	{
 		// Overloaded as parts are found
-		$command = $params = NULL;
+		$command = $params = null;
 
 		// command[param,param]
 		if (\preg_match('/^([^\(]*+)\((.*)\)$/', $str, $match))
@@ -531,7 +531,7 @@ class Arr extends \ArrayIterator
 			$command = $str;
 		}
 
-		if (\strpos($command, '::') !== FALSE)
+		if (\strpos($command, '::') !== false)
 		{
 			// Create a static method callable command
 			$command = \explode('::', $command, 2);

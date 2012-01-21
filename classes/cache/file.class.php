@@ -284,7 +284,7 @@ class File
 
     protected function get_expired_setting( $key, & $data )
     {
-        $dataArr = \explode(\N, $data, 3);
+        $dataArr = \explode(\CRLF, $data, 3);
         /*
         $dataArr[0] - 生存期
         $dataArr[1] - 设置时候的时间
@@ -307,6 +307,6 @@ class File
 
     protected function format_data($lifetime,$data)
     {
-        return $lifetime . \N . \TIME . \N . \serialize($data);
+        return $lifetime . \CRLF . \TIME . \CRLF . \serialize($data);
     }
 }

@@ -261,7 +261,7 @@ abstract class Core
 
         if (\IS_CLI)
         {
-            echo $msg.\N;
+            echo $msg.\CRLF;
             exit();
         }
 
@@ -277,17 +277,17 @@ abstract class Core
             $REQUEST_URI = \htmlspecialchars(\rawurldecode($REQUEST_URI));
 
             echo '<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">' .
-            \N . '<html>' .
-            \N . '<head>' .
-            \N . '<title>'.\__('Page Not Found').'</title>' .
-            \N . '</head>'.
-            \N . '<body>' .
-            \N . '<h1>'.\__('Page Not Found').'</h1>' .
-            \N . '<p>The requested URL ' . $REQUEST_URI . ' was not found on this server.</p>' .
-            \N . '<hr>' .
-            \N . $_SERVER['SERVER_SIGNATURE'] .
-            \N . '</body>' .
-            \N . '</html>';
+            \CRLF . '<html>' .
+            \CRLF . '<head>' .
+            \CRLF . '<title>'.\__('Page Not Found').'</title>' .
+            \CRLF . '</head>'.
+            \CRLF . '<body>' .
+            \CRLF . '<h1>'.\__('Page Not Found').'</h1>' .
+            \CRLF . '<p>The requested URL ' . $REQUEST_URI . ' was not found on this server.</p>' .
+            \CRLF . '<hr>' .
+            \CRLF . $_SERVER['SERVER_SIGNATURE'] .
+            \CRLF . '</body>' .
+            \CRLF . '</html>';
         }
 
         exit();
@@ -322,7 +322,7 @@ abstract class Core
 
         if (\IS_CLI)
         {
-            echo $msg . \N;
+            echo $msg . \CRLF;
             exit();
         }
 
@@ -332,7 +332,7 @@ abstract class Core
             $error = '';
             if ( $msg instanceof \Exception )
             {
-                $error .= 'Msg :' . $msg->getMessage() . \N . "Line:" . $msg->getLine() . \N . "File:" . static::debug_path($msg->getFile());
+                $error .= 'Msg :' . $msg->getMessage() . \CRLF . "Line:" . $msg->getLine() . \CRLF . "File:" . static::debug_path($msg->getFile());
             }
             else
             {
@@ -348,17 +348,17 @@ abstract class Core
             $REQUEST_URI = \htmlspecialchars(\rawurldecode($REQUEST_URI));
             echo '<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">' .
 
-            \N . '<html>' .
-            \N . '<head>' .
-            \N . '<title>'.\__('Internal Server Error').'</title>' .
-            \N . '</head>' .
-            \N . '<body>' .
-            \N . '<h1>'.\__('Internal Server Error').'</h1>' .
-            \N . '<p>The requested URL ' . $REQUEST_URI . ' was error on this server.</p>' .
-            \N . '<hr>' .
-            \N . $_SERVER['SERVER_SIGNATURE'] .
-            \N . '</body>' .
-            \N . '</html>';
+            \CRLF . '<html>' .
+            \CRLF . '<head>' .
+            \CRLF . '<title>'.\__('Internal Server Error').'</title>' .
+            \CRLF . '</head>' .
+            \CRLF . '<body>' .
+            \CRLF . '<h1>'.\__('Internal Server Error').'</h1>' .
+            \CRLF . '<p>The requested URL ' . $REQUEST_URI . ' was error on this server.</p>' .
+            \CRLF . '<hr>' .
+            \CRLF . $_SERVER['SERVER_SIGNATURE'] .
+            \CRLF . '</body>' .
+            \CRLF . '</html>';
         }
 
         exit();
