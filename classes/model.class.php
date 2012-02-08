@@ -117,7 +117,7 @@ class Model
      */
     public function clear_cache_data($fun,$arg1='',$arg2='')
     {
-        $args = func_get_args();
+        $args = \func_get_args();
         \array_shift($args);
         $this->_clear_cache_data_mode = true;
         \call_user_func_array($fun, $this, $args);

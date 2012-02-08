@@ -44,6 +44,11 @@ abstract class Core
      */
     protected static $close_connect_class_list = array();
 
+    public function __construct()
+    {
+        static::show_500('Core class can not instantiated');
+    }
+
     public static function setup()
     {
         static $run=null;
@@ -203,8 +208,8 @@ abstract class Core
             return static::factory('\\Core\\Config');
         }
 
-        $key_array = explode('.', $key);
-        $key = array_shift($key_array);
+        $key_array = \explode('.', $key);
+        $key = \array_shift($key_array);
 
         if (!isset(\Bootstrap::$config[$key]))return $default;
 
@@ -544,8 +549,8 @@ abstract class Core
      */
     public static function key_string($arr, $key)
     {
-        if (!is_array($arr))return null;
-        $keyArr = explode('.', $key);
+        if (!\is_array($arr))return null;
+        $keyArr = \explode('.', $key);
         foreach ( $keyArr as $key )
         {
             if ( isset($arr[$key]) )

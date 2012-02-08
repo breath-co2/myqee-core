@@ -7,19 +7,31 @@ namespace
     class Auth extends \Core\Auth{}
 
     class Cache extends \Core\Cache{}
-    class Cookie extends \Core\Cookie{}
-
+    class Captcha extends \Core\Captcha{}
     class Controller extends \Core\Controller{}
+    class Cookie extends \Core\Cookie{}
 
     class Database extends \Core\Database{}
 
-    class Session extends \Core\Session{}
+    class File extends \Core\File{}
+    class Form extends \Core\Form{}
 
-    class HttpIO extends \Core\HttpIO{}
-    class HttpGet extends \Core\HttpGet{}
     class html extends \Core\html{}
+    class HttpGet extends \Core\HttpGet{}
+    class HttpIO extends \Core\HttpIO{}
 
     class I18n extends \Core\I18n{}
+    class IpSource extends \Core\IpSource{}
+
+    class Member extends \Core\Member{}
+
+    class PinYin extends \Core\PinYin{}
+
+    class Session extends \Core\Session{}
+
+    class Text extends \Core\Text{}
+
+    class utf8 extends \Core\utf8{}
 
     class View extends \Core\View{}
 }

@@ -444,7 +444,7 @@ class Cache
             {
                 $lifestr = ((int)$expire / 2) . '~' . $expire . ',1/100';
             }
-            $value = '__::foRMat_static::Type=' . $type . ',ExpKey=' . $exp_key . ',Exp=' . $lifestr . ',SaveTime=' . \TIME . ',Value=' . \serialize($value);
+            $value = '__::foRMat_Cache::Type=' . $type . ',ExpKey=' . $exp_key . ',Exp=' . $lifestr . ',SaveTime=' . \TIME . ',Value=' . \serialize($value);
 
             if ( $type == static::TYPE_ADV_HIT || $type == static::TYPE_MAX_HIT )
             {
@@ -467,7 +467,7 @@ class Cache
 
     protected function _get_adv_data(&$value)
     {
-        if ( \substr($value, 0, 18) == '__::foRMat_static::' && \preg_match('#^__::foRMat_static::Type=(?P<type>[a-z0-9_]+),ExpKey=(?P<expkey>[a-f0-9]{32}),Exp=(?P<exp>[0-9,~/]+),SaveTime=(?P<savetime>[0-9]+),Value=(?P<value>.*)$#', $value, $match) )
+        if ( \substr($value, 0, 18) == '__::foRMat_Cache::' && \preg_match('#^__::foRMat_Cache::Type=(?P<type>[a-z0-9_]+),ExpKey=(?P<expkey>[a-f0-9]{32}),Exp=(?P<exp>[0-9,~/]+),SaveTime=(?P<savetime>[0-9]+),Value=(?P<value>.*)$#', $value, $match) )
         {
             #200~250,1/100
             if ( ! \preg_match('#^([0-9]+)~([0-9]+),([0-9]+)/([0-9]+)$#', $match['exp'], $match_exp) )

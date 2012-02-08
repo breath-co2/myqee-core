@@ -72,6 +72,7 @@ if (!\defined('_HTTPIO_METHOD'))
     };
 
     $tmp_fun();
+    unset($tmp_fun);
 }
 
 

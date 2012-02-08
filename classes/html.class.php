@@ -44,7 +44,9 @@ class html
         'selected',
         'checked',
         'readonly',
-        'disabled'
+        'disabled',
+        'max',
+        'min',
     );
 
     /**
@@ -114,7 +116,7 @@ class html
         {
             if ( \strpos($uri, '://') !== false )
             {
-                if ( static::$windowed_urls === true and empty($attributes['target']) )
+                if ( static::$windowed_urls === true && empty($attributes['target']) )
                 {
                     // Make the link open in a new window
                     $attributes['target'] = '_blank';

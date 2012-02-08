@@ -69,7 +69,7 @@ class Session
                 static::$config['name'] = 'PHPSESSINID';
             }
 
-            if (strtolower(static::$config['driver'])=='default')static::$config['driver'] = 'Default_Driver';
+            if (\strtolower(static::$config['driver'])=='default')static::$config['driver'] = 'Default_Driver';
 
             if ( isset(static::$config['driver']) && \class_exists('\\Session\\' . static::$config['driver'], true) )
             {

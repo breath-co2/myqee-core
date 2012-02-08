@@ -27,7 +27,7 @@ class I18n
             $accept_language = $_SERVER['HTTP_ACCEPT_LANGUAGE'];
 
             # 匹配语言设置
-            if (preg_match_all('#,([a-z]+\-[a-z]+);#i',$accept_language,$matches))
+            if (\preg_match_all('#,([a-z]+\-[a-z]+);#i',$accept_language,$matches))
             {
                 $accept_language = $matches[1];
                 $accept_language =  \array_slice($accept_language,0,2);    //只取前3个语言设置

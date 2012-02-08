@@ -294,18 +294,18 @@ class Form
                         // Create a new attribute set for this option
                         $option = array('value' => $_value);
 
-                        if ( in_array($_value, $selected) )
+                        if ( \in_array($_value, $selected) )
                         {
                             // This option is selected
                             $option['selected'] = 'selected';
                         }
 
                         // Change the option to the HTML string
-                        $_options[] = '<option' . \html::attributes($option) . '>' . html::chars($_name, false) . '</option>';
+                        $_options[] = '<option' . \html::attributes($option) . '>' . \html::chars($_name, false) . '</option>';
                     }
 
                     // Compile the options into a string
-                    $_options = "\n" . implode("\n", $_options) . "\n";
+                    $_options = "\n" . \implode("\n", $_options) . "\n";
 
                     $options[$value] = '<optgroup' . \html::attributes($group) . '>' . $_options . '</optgroup>';
                 }
@@ -317,19 +317,19 @@ class Form
                     // Create a new attribute set for this option
                     $option = array('value' => $value);
 
-                    if ( in_array($value, $selected) )
+                    if ( \in_array($value, $selected) )
                     {
                         // This option is selected
                         $option['selected'] = 'selected';
                     }
 
                     // Change the option to the HTML string
-                    $options[$value] = '<option' . html::attributes($option) . '>' . static::chars($name, false) . '</option>';
+                    $options[$value] = '<option' . \html::attributes($option) . '>' . static::chars($name, false) . '</option>';
                 }
             }
 
             // Compile the options into a single string
-            $options = "\n" . implode("\n", $options) . "\n";
+            $options = "\n" . \implode("\n", $options) . "\n";
         }
 
         return '<select' . \html::attributes($attributes) . '>' . $options . '</select>';

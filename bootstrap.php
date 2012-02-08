@@ -242,7 +242,7 @@ final class Bootstrap
             spl_autoload_register(array('Bootstrap','auto_load'));
 
             # 读取配置
-            if (!is_file(DIR_SYSTEM.'config.php'))
+            if (!is_file(DIR_SYSTEM.'config'.EXT))
             {
                 self::show_error('Please rename the file config.new.php to config.php');
             }
@@ -252,13 +252,14 @@ final class Bootstrap
             {
                 include $file;
             };
-            $include_config_file($config,DIR_SYSTEM.'config.php');
+            $include_config_file($config,DIR_SYSTEM.'config'.EXT);
 
             self::$config = $config;
+            unset($config);
 
             if (!isset(self::$config['core']['charset']))self::$config['core']['charset'] = 'utf-8';
 
-            if ( !IS_CLI )
+            if (!IS_CLI)
             {
                 # 输出文件头
                 header('Content-Type: text/html;charset='.self::$config['core']['charset']);
@@ -330,7 +331,7 @@ final class Bootstrap
                 {
                     if (isset($_SERVER["PATH_TRANSLATED"]))
                     {
-                        list($null, $pathinfo) = explode('index.php', $_SERVER["PATH_TRANSLATED"], 2);
+                        list($null, $pathinfo) = explode('index'.EXT, $_SERVER["PATH_TRANSLATED"], 2);
                     }
                     elseif (isset($_SERVER['REQUEST_URI']))
                     {
@@ -413,17 +414,33 @@ final class Bootstrap
         $found_path = array();
         foreach($include_path as $ns=>$path)
         {
-            $tmp_str = '';
+            $tmp_str = $real_path = '';
             $tmp_path = $path.'controllers';
+            $ids = array();
             foreach ($uri_arr as $uri_path)
             {
-                $tmpdir = $tmp_path.$tmp_str.$uri_path.DS;
+                if (is_numeric($uri_path))
+                {
+                    $real_uri_path = '_id';
+                    $ids[] = $uri_path;
+                }
+                elseif ($uri_path=='_id')
+                {
+                    # 不允许直接在URL中使用_id
+                    continue;
+                }
+                else
+                {
+                    $real_uri_path = $uri_path;
+                }
+                $tmpdir = $tmp_path.$real_path.$real_uri_path.DS;
                 $find_log[] = $tmpdir;
+                $real_path .= $real_uri_path.DS;
                 $tmp_str.=$uri_path.DS;
 
                 if (is_dir($tmpdir))
                 {
-                    $found_path[$tmp_str][] = array($ns,$tmpdir);
+                    $found_path[$tmp_str][] = array($ns,$tmpdir,$real_path,$ids);
                 }
                 else
                 {
@@ -431,7 +448,7 @@ final class Bootstrap
                 }
             }
         }
-
+        unset($ids);
         $found = null;
 
         # 寻找可能的文件
@@ -452,7 +469,7 @@ final class Bootstrap
                     $args = array();
                 }
 
-                $id = null;
+                $the_id = array();
                 $tmp_class = array_shift($args);
 
                 if ( 0===strlen($tmp_class) )
@@ -461,26 +478,33 @@ final class Bootstrap
                 }
                 elseif ( is_numeric($tmp_class) )
                 {
-                    $id = $tmp_class;
+                    $the_id = array($tmp_class);
                     $tmp_class = '_id';
                 }
-
-                $path_str = str_replace('/','\\',ltrim($path,'/'));
+                elseif ( $tmp_class=='_id' )
+                {
+                    continue;
+                }
 
                 foreach ($all_path as $tmp_arr)
                 {
-                    list($ns,$tmp_path) = $tmp_arr;
-                    $tmpfile = $tmp_path.$tmp_class.'.controller.php';
+                    list($ns,$tmp_path,$real_path,$ids) = $tmp_arr;
+                    $path_str = str_replace('/','\\',ltrim($real_path,'/'));
+                    $tmpfile = $tmp_path.$tmp_class.'.controller'.EXT;
                     $find_log[] = $tmpfile;
 
                     if (is_file($tmpfile))
                     {
+                        if ($the_id)
+                        {
+                            $ids = array_merge($ids,$the_id);
+                        }
                         $found = array
                         (
                             'file'      => $tmpfile,
                             'class'     => $path_str.$tmp_class,
                             'args'      => $args,
-                            'id'        => $id,
+                            'ids'       => $ids,
                             'namespace' => $ns,
                         );
                         break 2;
@@ -534,17 +558,17 @@ final class Bootstrap
                 }
 
                 $ispublicmethod = new ReflectionMethod($controller,$action_name);
-
                 if (!$ispublicmethod->isPublic())
                 {
                     Core::show_500('Request Method Not Allowed.',405);
                 }
+                unset($ispublicmethod);
 
                 # 将参数传递给控制器
                 $controller->action = $action_name;
                 $controller->controller = $found['class'];
                 $controller->arguments = $arguments;
-                $controller->id = $found['id'];
+                $controller->ids = $found['ids'];
 
                 # 前置方法
                 if (method_exists($controller,'before'))
@@ -747,7 +771,7 @@ final class Bootstrap
      *
      * @param string $library_name 指定类库
      * @return boolean
-     * @throws \Exception
+     * @throws Exception
      */
     public static function import_library($library_name)
     {
@@ -772,19 +796,18 @@ final class Bootstrap
                 $appliction = array( '\\' => array_shift(self::$include_path) );
 
                 # 加载配置（初始化）文件
-                $config = $dir . 'config'.EXT;
-                if (is_file($config))
+                $config_file = $dir . 'config'.EXT;
+                if (is_file($config_file))
                 {
-                    $include_file = function ($file)
-                        {
-                        include $file;
+                    $include_file = function (&$config,$_file_)
+                    {
+                        include $_file_;
                     };
-
-                    $include_file($config);
+                    $include_file(self::$config , $config_file);
                 }
 
                 # 合并目录
-                self::$include_path =array_merge($appliction, array($ns=>$dir), self::$include_path);
+                self::$include_path = array_merge($appliction, array($ns=>$dir), self::$include_path);
 
                 return true;
             }

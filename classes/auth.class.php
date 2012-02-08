@@ -120,7 +120,7 @@ class Auth
 
             if ($data)
             {
-                $member_obj = $this->config['member_object_name']?$this->config['member_object_name']:'Member';
+                $member_obj = '\\'.\ltrim($this->config['member_object_name']?$this->config['member_object_name']:'Member','\\');
                 static::$user_info[$this->config_name][$username] = new $member_obj($data);
             }
             else
