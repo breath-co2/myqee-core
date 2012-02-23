@@ -56,6 +56,13 @@ define('DIR_APPS', DIR_SYSTEM.'apps'.DS);
 define('DIR_DATA', DIR_SYSTEM.'data'.DS);
 
 /**
+ * 项目目录
+ *
+ * @var string
+ */
+define('DIR_PROJECT', DIR_SYSTEM.'projects'.DS);
+
+/**
  * Cache目录
  *
  * @var string
@@ -205,6 +212,20 @@ final class Bootstrap
     public static $path_info = null;
 
     /**
+     * 当前项目
+     *
+     * @var string
+     */
+    public static $project = null;
+
+    /**
+     * 当前应用
+     *
+     * @var string
+     */
+    public static $app = null;
+
+    /**
      * 目录设置
      *
      * @var array
@@ -213,8 +234,6 @@ final class Bootstrap
     (
         'classes'    => array('classes'     , '.class'),
         'controller' => array('controllers' , '.controller'),
-        'admin'      => array('admin'       , '.admin'),
-        'shell'      => array('shell'       , '.shell'),
         'model'      => array('models'      , '.model'),
         'orm'        => array('orm'         , '.orm'),
     );
@@ -231,12 +250,6 @@ final class Bootstrap
         if (!$run)
         {
             $run = true;
-
-            # 检查PHP版本
-            if ( version_compare(PHP_VERSION, '5.3' ,'<') )
-            {
-                self::show_error('本系统必须运行在PHP5.3以上，您当前的PHP版本太低，为:'.PHP_VERSION.'，无法运行本系统。');
-            }
 
             # 注册自动加载类
             spl_autoload_register(array('Bootstrap','auto_load'));
@@ -257,13 +270,94 @@ final class Bootstrap
             self::$config = $config;
             unset($config);
 
-            if (!isset(self::$config['core']['charset']))self::$config['core']['charset'] = 'utf-8';
+            # 请求模式
+            $request_mode = '';
 
-            if (!IS_CLI)
+            if (IS_CLI)
             {
-                # 输出文件头
-                header('Content-Type: text/html;charset='.self::$config['core']['charset']);
+                if (!isset($_SERVER["argv"]))
+                {
+                    exit('Err Argv');
+                }
+                $argv = $_SERVER["argv"];
+
+                //$argv[0]为文件名
+                if (isset($argv[1]) && $argv[1] && isset(self::$config['core']['projects'][$argv[1]]))
+                {
+                    self::$project = $argv[1];
+                }
+
+                array_shift($argv); //将文件名移除
+                array_shift($argv); //将项目名移除
+
+                self::$path_info = trim(implode('/', $argv));
+
+                unset($argv);
+
+                $open_debug = false;
             }
+            else
+            {
+                self::_setup_by_url($request_mode);
+
+                if (isset(self::$config['core']['charset']))
+                {
+                    # 输出文件头
+                    header('Content-Type: text/html;charset='.self::$config['core']['charset']);
+                }
+
+                /**
+                 * 判断是否开启了在线调试
+                 *
+                 * @return boolean
+                 */
+                $is_online_debug = function ()
+                {
+                    if (!isset($_COOKIE['_debug_open'])) return false;
+                    if (!isset(Bootstrap::$config['core']['debug_open_password'])) return false;
+                    if (!is_array(Bootstrap::$config['core']['debug_open_password']))return false;
+
+                    foreach ( Bootstrap::$config['core']['debug_open_password'] as $user=>$pass )
+                    {
+                        if ($_COOKIE['_debug_open'] == Bootstrap::get_debug_hash($user,$pass))
+                        {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                };
+
+                # DEBUG配置
+                if ( $is_online_debug() )
+                {
+                    $open_debug = true;
+                }
+                elseif ( isset( self::$config['core']['local_debug_cfg'] ) && self::$config['core']['local_debug_cfg'] )
+                {
+                    if ( function_exists( 'get_cfg_var' ) )
+                    {
+                        $open_debug = get_cfg_var( self::$config['core']['local_debug_cfg'] ) ? true : false;
+                    }
+                    else
+                    {
+                        $open_debug = false;
+                    }
+                }
+                else
+                {
+                    $open_debug = false;
+                }
+
+                unset($is_online_debug);
+            }
+
+            /**
+             * 是否开启DEBUG模式
+             *
+             * @var boolean
+             */
+            define('IS_DEBUG', $open_debug);
 
             # 设置页面错误等级
             if (isset(self::$config['core']['error_reporting']))
@@ -277,111 +371,129 @@ final class Bootstrap
                 date_default_timezone_set(self::$config['core']['timezone']);
             }
 
-            # 如果有autoload目录，则设置加载目录
-            if ( isset(self::$config['core']['libraries']['autoload']) && is_array(self::$config['core']['libraries']['autoload']) && self::$config['core']['libraries']['autoload'] )
+            /**
+             * 加载类库
+             * @var array $arr
+             */
+            $load_library = function($arr)
             {
-                foreach (self::$config['core']['libraries']['autoload'] as $library_name)
+                foreach ($arr as $library_name)
                 {
                     if (!$library_name)continue;
 
                     try
                     {
-                        self::import_library($library_name);
+                        Bootstrap::import_library($library_name);
                     }
                     catch (Exception $e)
                     {
-                        self::show_error($e->getMessage());
+                        Bootstrap::show_error($e->getMessage());
                     }
                 }
+            };
+
+            /**
+             * 是否后台模式
+             *
+             * @var boolean
+             */
+            define('IS_ADMIN_MODE',(!IS_CLI && $request_mode=='admin')?true:false);
+
+            /**
+             * 是否系统内部调用模式
+             *
+             * @var boolean
+             */
+            define('IS_SYSTEM_MODE',false);
+
+            # 如果有autoload目录，则设置加载目录
+            if ( isset(self::$config['core']['libraries']['autoload']) && is_array(self::$config['core']['libraries']['autoload']) && self::$config['core']['libraries']['autoload'] )
+            {
+                $load_library(self::$config['core']['libraries']['autoload']);
             }
+
+            if (IS_CLI)
+            {
+                # cli模式
+                if ( isset(self::$config['core']['libraries']['cli']) && is_array(self::$config['core']['libraries']['cli']) && self::$config['core']['libraries']['cli'] )
+                {
+                    $load_library(self::$config['core']['libraries']['cli']);
+                }
+
+                # 控制器在[shell]目录下
+                self::$dir_setting['controller'][0] .= DS.'[shell]';
+            }
+            elseif (IS_ADMIN_MODE)
+            {
+                # 后台模式
+                if ( isset(self::$config['core']['libraries']['admin']) && is_array(self::$config['core']['libraries']['admin']) && self::$config['core']['libraries']['admin'] )
+                {
+                    $load_library(self::$config['core']['libraries']['admin']);
+                }
+
+                # 控制器在[admin]目录下
+                self::$dir_setting['controller'][0] .= DS.'[admin]';
+            }
+            elseif ($request_mode=='app')
+            {
+                # APP模式
+                if ( isset(self::$config['core']['libraries']['app']) && is_array(self::$config['core']['libraries']['app']) && self::$config['core']['libraries']['app'] )
+                {
+                    $load_library(self::$config['core']['libraries']['app']);
+                }
+            }
+
+            if (IS_DEBUG)
+            {
+                # 加载debug类库
+                if ( isset(self::$config['core']['libraries']['debug']) && is_array(self::$config['core']['libraries']['debug']) && self::$config['core']['libraries']['debug'] )
+                {
+                    $load_library(self::$config['core']['libraries']['debug']);
+                }
+
+                # 输出一些系统信息
+                Core::debug()->group( '系统加载的目录' );
+                foreach ( self::$include_path as $value )
+                {
+                    Core::debug()->log( Core::debug_path( $value ) );
+                }
+                Core::debug()->groupEnd();
+
+                if (self::$project)
+                {
+                    Core::debug()->info('当前项目：'.self::$project);
+                }
+                elseif ($request_mode=='app')
+                {
+                    Core::debug()->info('系统进入APP模式');
+                }
+                else
+                {
+                    Core::debug()->info('当前为默认项目');
+                }
+
+                if (IS_ADMIN_MODE)
+                {
+                    Core::debug()->info('系统进入后台模式');
+                }
+            }
+
+
+            unset($load_library);
 
             Core::setup();
         }
 
         if ($auto_execute)
         {
-            $get_pathinfo = function()
+            if (IS_CLI)
             {
-                # 处理base_url
-                if (null===Bootstrap::$base_url && isset($_SERVER["SCRIPT_NAME"])&&$_SERVER["SCRIPT_NAME"])
-                {
-                    $base_url_len = strrpos($_SERVER["SCRIPT_NAME"], '/');
-                    if ($base_url_len)
-                    {
-                        $base_url = substr($_SERVER["SCRIPT_NAME"], 0, $base_url_len);
-                        if (preg_match('#^(.*)/wwwroot$#', $base_url, $m))
-                        {
-                            # 特殊处理wwwroot目录
-                            $base_url = $m[1];
-                            $base_url_len = strlen($base_url);
-                        }
-
-                        if (strtolower(substr($_SERVER['REQUEST_URI'], 0, $base_url_len))==strtolower($base_url))
-                        {
-                            Bootstrap::$base_url = $base_url;
-                        }
-                    }
-                }
-
-                if (isset($_SERVER['PATH_INFO']))
-                {
-                    $pathinfo = $_SERVER["PATH_INFO"];
-                }
-                else
-                {
-                    if (isset($_SERVER["PATH_TRANSLATED"]))
-                    {
-                        list($null, $pathinfo) = explode('index'.EXT, $_SERVER["PATH_TRANSLATED"], 2);
-                    }
-                    elseif (isset($_SERVER['REQUEST_URI']))
-                    {
-                        $request_uri = $_SERVER['REQUEST_URI'];
-
-                        if (Bootstrap::$base_url)
-                        {
-                            $request_uri = substr($request_uri, strlen(Bootstrap::$base_url));
-                        }
-                        // 移除查询参数
-                        list($pathinfo) = explode('?', $request_uri, 2);
-                    }
-                    elseif (isset($_SERVER['PHP_SELF']))
-                    {
-                        $pathinfo = $_SERVER['PHP_SELF'];
-                    }
-                    elseif (isset($_SERVER['REDIRECT_URL']))
-                    {
-                        $pathinfo = $_SERVER['REDIRECT_URL'];
-                    }
-                    else
-                    {
-                        $pathinfo = false;
-                    }
-                }
-
-                # 过滤pathinfo传入进来的服务器默认页
-                if ( false!==$pathinfo && ($indexpagelen = strlen(Bootstrap::$config['core']['server_index_page'])) && substr($pathinfo, -1-$indexpagelen) == '/'.Bootstrap::$config['core']['server_index_page'] )
-                {
-                    $pathinfo = substr($pathinfo, 0, -$indexpagelen);
-                }
-                $pathinfo = trim($pathinfo);
-
-                if (!isset($_SERVER["PATH_INFO"]))
-                {
-                    $_SERVER["PATH_INFO"] = $pathinfo;
-                }
-
-                return $pathinfo;
-            };
-
-            $path_info = $get_pathinfo();
-            unset($get_pathinfo);
-
-            if (!IS_CLI)ob_start();
-
-            self::execute($path_info);
-
-            if (!IS_CLI)
+                self::execute(self::$path_info);
+            }
+            else
             {
+                ob_start();
+                self::execute(self::$path_info);
                 HttpIO::$body = ob_get_clean();
             }
 
@@ -396,125 +508,14 @@ final class Bootstrap
      */
     public static function execute($uri)
     {
-        $uri = '/'.trim($uri,' /');
-        if ($uri!=='/')
-        {
-            $uri_arr = explode('/',$uri);
-        }
-        else
-        {
-            $uri_arr = array('');
-        }
-        $include_path = self::$include_path;
-
-        # log
-        $find_log = array();
-
-        # 首先找到存在的目录
-        $found_path = array();
-        foreach($include_path as $ns=>$path)
-        {
-            $tmp_str = $real_path = '';
-            $tmp_path = $path.'controllers';
-            $ids = array();
-            foreach ($uri_arr as $uri_path)
-            {
-                if (is_numeric($uri_path))
-                {
-                    $real_uri_path = '_id';
-                    $ids[] = $uri_path;
-                }
-                elseif ($uri_path=='_id')
-                {
-                    # 不允许直接在URL中使用_id
-                    continue;
-                }
-                else
-                {
-                    $real_uri_path = $uri_path;
-                }
-                $tmpdir = $tmp_path.$real_path.$real_uri_path.DS;
-                $find_log[] = $tmpdir;
-                $real_path .= $real_uri_path.DS;
-                $tmp_str.=$uri_path.DS;
-
-                if (is_dir($tmpdir))
-                {
-                    $found_path[$tmp_str][] = array($ns,$tmpdir,$real_path,$ids);
-                }
-                else
-                {
-                    break;
-                }
-            }
-        }
-        unset($ids);
-        $found = null;
-
-        # 寻找可能的文件
-        if ($found_path)
-        {
-            # 调整优先级
-            krsort($found_path);
-
-            foreach ($found_path as $path=>$all_path)
-            {
-                $tmp_p = substr($uri,strlen($path));
-                if ($tmp_p)
-                {
-                    $args = explode('/',substr($uri,strlen($path)));
-                }
-                else
-                {
-                    $args = array();
-                }
-
-                $the_id = array();
-                $tmp_class = array_shift($args);
-
-                if ( 0===strlen($tmp_class) )
-                {
-                    $tmp_class = 'index';
-                }
-                elseif ( is_numeric($tmp_class) )
-                {
-                    $the_id = array($tmp_class);
-                    $tmp_class = '_id';
-                }
-                elseif ( $tmp_class=='_id' )
-                {
-                    continue;
-                }
-
-                foreach ($all_path as $tmp_arr)
-                {
-                    list($ns,$tmp_path,$real_path,$ids) = $tmp_arr;
-                    $path_str = str_replace('/','\\',ltrim($real_path,'/'));
-                    $tmpfile = $tmp_path.$tmp_class.'.controller'.EXT;
-                    $find_log[] = $tmpfile;
-
-                    if (is_file($tmpfile))
-                    {
-                        if ($the_id)
-                        {
-                            $ids = array_merge($ids,$the_id);
-                        }
-                        $found = array
-                        (
-                            'file'      => $tmpfile,
-                            'class'     => $path_str.$tmp_class,
-                            'args'      => $args,
-                            'ids'       => $ids,
-                            'namespace' => $ns,
-                        );
-                        break 2;
-                    }
-                }
-            }
-        }
+        $found = self::find_controller($uri);
 
         if ($found)
         {
+            if (IS_DEBUG)
+            {
+                Core::debug()->log($found,'寻找到的控制器');
+            }
             require $found['file'];
 
             $class_name = $found['namespace'].'Controller\\'.$found['class'];
@@ -616,8 +617,8 @@ final class Bootstrap
         {
             Core::show_404();
         }
-
     }
+
 
     /**
      * 自动加载
@@ -653,7 +654,7 @@ final class Bootstrap
                     $top_name_space = array_shift($class_arr);
                     break;
                 case 'library':
-                case 'app':
+                case 'project':
                     if (count($class_arr)<4)
                     {
                         # 扩展类库和APP必须是4位及以上，比如 Library\MyQEE\CMS\Test
@@ -662,6 +663,7 @@ final class Bootstrap
                     $top_name_space = array_shift($class_arr);
                     $sub_name_space = array_shift($class_arr).DS;
                     $sub_name_space.= array_shift($class_arr).DS;
+                    break;
                 default;
                     break;
             }
@@ -677,7 +679,7 @@ final class Bootstrap
             ''        => DIR_APPLICATION,
             'library' => DIR_LIBRARY,
             'core'    => DIR_CORE,
-            'app'     => DIR_APPS,
+            'project' => DIR_PROJECT,
         );
 
         /*
@@ -739,7 +741,7 @@ final class Bootstrap
      * 查找文件
      *
      *   //查找一个视图文件
-     *   Bootstrap::find_file('views','test',EXT);
+     *   self::find_file('views','test',EXT);
      *
      * @param string $dir 目录
      * @param string $file 文件
@@ -792,8 +794,18 @@ final class Bootstrap
 
             if (is_dir($dir))
             {
-                # 开发目录
-                $appliction = array( '\\' => array_shift(self::$include_path) );
+                if (self::$project)
+                {
+                    $appliction = array
+                    (
+                        '\\project\\'.self::$project.'\\' => array_shift(self::$include_path),
+                        '\\'                              => array_shift(self::$include_path),
+                    );
+                }
+                else
+                {
+                    $appliction = array( '\\' => array_shift(self::$include_path) );
+                }
 
                 # 加载配置（初始化）文件
                 $config_file = $dir . 'config'.EXT;
@@ -822,9 +834,581 @@ final class Bootstrap
         }
     }
 
-    private static function show_error($msg)
+    /**
+     * 根据密码获取一个hash
+     *
+     * @param string $username
+     * @param string $password
+     * @return string
+     */
+    public static function get_debug_hash( $username , $password )
     {
-        echo __($msg);
+        static $config_str = null;
+        if (null === $config_str) $config_str = var_export(self::$config['core']['debug_open_password'], true);
+        return md5($config_str . '_open$&*@debug' . $password . '_' . $username );
+    }
+
+    /**
+     * 寻找控制器
+     *
+     * @return array
+     */
+    private function find_controller($uri)
+    {
+        $uri = strtolower('/' . trim($uri, ' /'));
+        if ($uri != '/')
+        {
+            $uri_arr = explode('/', $uri);
+        }
+        else
+        {
+            $uri_arr = array('');
+        }
+        if (IS_DEBUG)
+        {
+            Core::debug()->log($uri,'find controller uri');
+        }
+
+        $include_path = self::$include_path;
+
+        if (self::$project || self::$app)
+        {
+            # 如果是某个项目或是app模式，则不在application里寻找控制器
+            unset($include_path['\\']);
+        }
+
+        # log
+        $find_log = $find_path_log = array();
+
+        # 控制器目录
+        $controller_dir = 'controllers';
+
+        /**
+         * PHP 保留关键字
+         *
+         * @var array
+         */
+        $reserved_keywords = array(
+            'and',
+            'or',
+            'xor',
+            '__file__',
+            'exception',
+            '__line__',
+            'array',
+            'as',
+            'break',
+            'case',
+            'class',
+            'const',
+            'continue',
+            'declare',
+            'default',
+            'die',
+            'do',
+            'echo',
+            'else',
+            'elseif',
+            'empty',
+            'enddeclare',
+            'endfor',
+            'endforeach',
+            'endif',
+            'endswitch',
+            'endwhile',
+            'eval',
+            'exit',
+            'extends',
+            'for',
+            'foreach',
+            'function',
+            'global',
+            'if',
+            'include',
+            'include_once',
+            'isset',
+            'list',
+            'new',
+            'print',
+            'require',
+            'require_once',
+            'return',
+            'static',
+            'switch',
+            'unset',
+            'use',
+            'var',
+            'while',
+            '__function__',
+            '__class__',
+            '__method__',
+            'final',
+            'php_user_filter',
+            'interface',
+            'implements',
+            'extends',
+            'public',
+            'private',
+            'protected',
+            'abstract',
+            'clone',
+            'try',
+            'catch',
+            'throw',
+            'cfunction',
+            'this',
+        );
+
+        # 首先找到存在的目录
+        $found_path = array();
+        foreach ( $include_path as $ns => $path )
+        {
+            $tmp_str = $real_path = $real_class = '';
+            $tmp_path = $path . self::$dir_setting['controller'][0];
+            $ids = array();
+            foreach ( $uri_arr as $uri_path )
+            {
+                if (is_numeric($uri_path))
+                {
+                    $real_uri_path = '_id';
+                    $ids[] = $uri_path;
+                }
+                elseif ($uri_path == '_id')
+                {
+                    # 不允许直接在URL中使用_id
+                    break;
+                }
+                elseif (preg_match('#[^a-z0-9_]#i', $uri_path))
+                {
+                    # 不允许非a-z0-9_的字符在控制中
+                    break;
+                }
+                else
+                {
+                    $real_uri_path = $uri_path;
+                }
+
+                if (in_array($real_uri_path, $reserved_keywords))
+                {
+                    $real_uri_class = '_' . $real_uri_path;
+                }
+                else
+                {
+                    $real_uri_class = $real_uri_path;
+                }
+
+                $tmpdir = $tmp_path . $real_path . $real_uri_path . DS;
+                $find_path_log[] = $tmpdir;
+                $real_path .= $real_uri_path . DS;
+                $real_class .= $real_uri_class . DS;
+                $tmp_str .= $uri_path . DS;
+
+                if (is_dir($tmpdir))
+                {
+                    $found_path[$tmp_str][] = array(
+                        $ns,
+                        $tmpdir,
+                        $real_class,
+                        $ids
+                    );
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
+
+        unset($ids);
+        $found = null;
+
+        # 寻找可能的文件
+        if ($found_path)
+        {
+            # 调整优先级
+            krsort($found_path);
+
+            foreach ( $found_path as $path => $all_path )
+            {
+                $tmp_p = substr($uri, strlen($path));
+                if ($tmp_p)
+                {
+                    $args = explode('/', substr($uri, strlen($path)));
+                }
+                else
+                {
+                    $args = array();
+                }
+
+                $the_id = array();
+                $tmp_class = array_shift($args);
+
+                if (0 === strlen($tmp_class))
+                {
+                    $tmp_class = 'index';
+                }
+                elseif (is_numeric($tmp_class))
+                {
+                    $the_id = array(
+                        $tmp_class
+                    );
+                    $tmp_class = '_id';
+                }
+                elseif ($tmp_class == '_id')
+                {
+                    continue;
+                }
+
+                # 检查是否PHP保留关键字
+                if (in_array($tmp_class, $reserved_keywords))
+                {
+                    $real_class = '_' . $tmp_class;
+                }
+                else
+                {
+                    $real_class = $tmp_class;
+                }
+
+                foreach ( $all_path as $tmp_arr )
+                {
+                    list($ns, $tmp_path, $real_path, $ids) = $tmp_arr;
+                    $path_str = str_replace('/', '\\', ltrim($real_path, '/'));
+                    $tmpfile = $tmp_path . $tmp_class . self::$dir_setting['controller'][1] . EXT;
+                    $find_log[] = $tmpfile;
+
+                    if (is_file($tmpfile))
+                    {
+                        if ($the_id)
+                        {
+                            $ids = array_merge($ids, $the_id);
+                        }
+                        $found = array(
+                            'file' => $tmpfile,
+                            'class' => $path_str . $real_class,
+                            'args' => $args,
+                            'ids' => $ids,
+                            'namespace' => $ns
+                        );
+
+                        break 2;
+                    }
+                }
+            }
+        }
+
+        if (IS_DEBUG)
+        {
+            Core::debug()->log($find_path_log,'搜寻控制器目录');
+            Core::debug()->log($find_log,'搜寻控制器文件');
+        }
+
+        return $found;
+    }
+
+
+    private static function show_error($msg, array $values = null)
+    {
+        echo __($msg,$values);
         exit;
+    }
+
+    /**
+     * 根据URL初始化
+     */
+    private static function _setup_by_url( & $request_mode )
+    {
+        $setup_path_info = function ()
+        {
+            # 处理base_url
+            if (null === Bootstrap::$base_url && isset($_SERVER["SCRIPT_NAME"]) && $_SERVER["SCRIPT_NAME"])
+            {
+                $base_url_len = strrpos($_SERVER["SCRIPT_NAME"], '/');
+                if ($base_url_len)
+                {
+                    $base_url = substr($_SERVER["SCRIPT_NAME"], 0, $base_url_len);
+                    if (preg_match('#^(.*)/wwwroot$#', $base_url, $m))
+                    {
+                        # 特殊处理wwwroot目录
+                        $base_url = $m[1];
+                        $base_url_len = strlen($base_url);
+                    }
+
+                    if (strtolower(substr($_SERVER['REQUEST_URI'], 0, $base_url_len)) == strtolower($base_url))
+                    {
+                        Bootstrap::$base_url = $base_url;
+                    }
+                }
+            }
+
+            if (isset($_SERVER['PATH_INFO']))
+            {
+                $pathinfo = $_SERVER["PATH_INFO"];
+            }
+            else
+            {
+                if (isset($_SERVER["PATH_TRANSLATED"]))
+                {
+                    list($null, $pathinfo) = explode('index' . EXT, $_SERVER["PATH_TRANSLATED"], 2);
+                }
+                elseif (isset($_SERVER['REQUEST_URI']))
+                {
+                    $request_uri = $_SERVER['REQUEST_URI'];
+
+                    if (Bootstrap::$base_url)
+                    {
+                        $request_uri = substr($request_uri, strlen(Bootstrap::$base_url));
+                    }
+                    // 移除查询参数
+                    list($pathinfo) = explode('?', $request_uri, 2);
+                }
+                elseif (isset($_SERVER['PHP_SELF']))
+                {
+                    $pathinfo = $_SERVER['PHP_SELF'];
+                }
+                elseif (isset($_SERVER['REDIRECT_URL']))
+                {
+                    $pathinfo = $_SERVER['REDIRECT_URL'];
+                }
+                else
+                {
+                    $pathinfo = false;
+                }
+            }
+
+            # 过滤pathinfo传入进来的服务器默认页
+            if (false !== $pathinfo && ($indexpagelen = strlen(Bootstrap::$config['core']['server_index_page'])) && substr($pathinfo, -1 - $indexpagelen) == '/' . Bootstrap::$config['core']['server_index_page'])
+            {
+                $pathinfo = substr($pathinfo, 0, -$indexpagelen);
+            }
+            $pathinfo = trim($pathinfo);
+
+            if (!isset($_SERVER["PATH_INFO"]))
+            {
+                $_SERVER["PATH_INFO"] = $pathinfo;
+            }
+
+            Bootstrap::$path_info = $pathinfo;
+        };
+
+        $setup_path_info();
+
+        $get_path_info = function (& $url)
+        {
+            static $protocol = null,$protocol_len=0;
+            if (null===$protocol)
+            {
+                if (!empty($_SERVER['HTTPS']) && filter_var($_SERVER['HTTPS'], FILTER_VALIDATE_BOOLEAN))
+                {
+                    $protocol = 'https://';
+                    $protocol_len = 8;
+                }
+                else
+                {
+                    $protocol = 'http://';
+                    $protocol_len = 7;
+                }
+            }
+
+            $url = strtolower($url);
+
+            # 结尾补/
+            if (substr($url, -1) != '/') $url .= '/';
+
+            if (substr($url, 0, $protocol_len) == $protocol)
+            {
+                $len = strlen($url);
+                if (strtolower(substr($_SERVER["SCRIPT_URI"], 0, $len)) == $url)
+                {
+                    # 匹配到项目
+                    return '/' . substr($_SERVER["SCRIPT_URI"], $len);
+                }
+            }
+            else
+            {
+                # 开头补/
+                if (substr($url, 0, 1) != '/') $url = '/' . $url;
+                $len = strlen($url);
+
+                if (strtolower(substr(Bootstrap::$path_info, 0, $len)) == $url)
+                {
+                    # 匹配到项目
+                    return '/' . substr(Bootstrap::$path_info, $len);
+                }
+            }
+
+            return false;
+        };
+
+        # 项目相关设置
+        if (isset(self::$config['core']['projects']) && is_array(self::$config['core']['projects']) && self::$config['core']['projects'])
+        {
+            # 处理项目
+            foreach ( self::$config['core']['projects'] as $project => $item )
+            {
+                if (!preg_match('#^[a-z0-9_]+$#i', $project)) continue;
+
+                $admin_url = array();
+                if (isset($item['admin_url']) && $item['admin_url'])
+                {
+                    if (!is_array($item['admin_url'])) $item['admin_url'] = array
+                    (
+                        $item['admin_url']
+                    );
+
+                    foreach ( $item['admin_url'] as $admin_url )
+                    {
+                        if (preg_match('#^http(s)?\://#i', $admin_url))
+                        {
+                            if (($path_info_admin = $get_path_info($admin_url)) != false)
+                            {
+                                self::$project   = $project;
+                                self::$path_info = $path_info_admin;
+                                self::$base_url  = $admin_url;
+                                $request_mode    = 'admin';
+
+                                break 2;
+                            }
+                        }
+                        else
+                        {
+                            # /开头的后台URL
+                            $admin_url[] = $admin_url;
+                        }
+                    }
+                }
+
+                if ($item['url'])
+                {
+                    if (!is_array($item['url'])) $item['url'] = array
+                    (
+                        $item['url']
+                    );
+
+                    foreach ( $item['url'] as $url )
+                    {
+                        if (($path_info = $get_path_info($url)) != false)
+                        {
+                            self::$project = $project;
+                            self::$path_info = $path_info;
+                            self::$base_url = $url;
+
+                            if ($admin_url)
+                            {
+                                foreach ( $admin_url as $url2 )
+                                {
+                                    # 处理后台URL不是 http:// 或 https:// 开头的形式
+                                    if (($path_info_admin = $get_path_info($url2)) != false)
+                                    {
+                                        self::$path_info = $path_info_admin;
+                                        self::$base_url .= ltrim($url2, '/');
+                                        $request_mode = 'admin';
+
+                                        break 3;
+                                    }
+                                }
+                            }
+
+                            break 2;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (self::$project)
+        {
+            $project_dir = DIR_PROJECT . self::$project . DS;
+            if (!is_dir($project_dir))
+            {
+                self::show_error('not found the project: :project', array(
+                    ':project' => self::$project
+                ));
+            }
+
+            # 根据URL寻找到了项目
+            self::$include_path = array_merge(array('\\project\\' . self::$project . '\\' => $project_dir), self::$include_path);
+        }
+        else
+        {
+            if (isset(self::$config['core']['url']['admin']) && self::$config['core']['url']['admin'] && ($path_info = $get_path_info(self::$config['core']['url']['admin'])) != false)
+            {
+                self::$path_info = $path_info;
+                self::$base_url = self::$config['core']['url']['admin'];
+                $request_mode = 'admin';
+            }
+            else
+            {
+                if (isset(self::$config['core']['apps_url']) && is_array(self::$config['core']['apps_url']) && self::$config['core']['apps_url'])
+                {
+                    foreach ( self::$config['core']['apps_url'] as $app => $urls )
+                    {
+                        if (!$urls) continue;
+                        if (!preg_match('#^[a-z0-9_]+//[a-z0-9]+$#i', $app)) continue;
+
+                        if (!is_array($urls)) $urls = array(
+                            $urls
+                        );
+                        foreach ( $urls as $url )
+                        {
+                            if (($path_info = $get_path_info($url)) != false)
+                            {
+                                self::$app = $app;
+                                self::$path_info = $path_info;
+                                self::$base_url = $url;
+
+                                break 2;
+                            }
+                        }
+                    }
+                }
+
+                if (null===self::$app)
+                {
+
+                    # 没有相关应用
+                    if (isset(self::$config['core']['url']['apps']) && self::$config['core']['url']['apps'])
+                    {
+                        if (($path_info = $get_path_info(self::$config['core']['url']['apps'])) != false)
+                        {
+                            # 匹配到应用默认目录
+                            $path_info = trim($path_info, '/');
+
+                            self::$app = true;
+                            if ($path_info)
+                            {
+                                $path_info_arr = explode('/', $path_info);
+
+                                if (count($path_info_arr) >= 2)
+                                {
+                                    $app = array_shift($path_info_arr) . '/' . array_shift($path_info_arr);
+                                    if (preg_match('#^[a-z0-9_]+//[a-z0-9]+$#i', $app))
+                                    {
+                                        $path_info = '/' . implode('/', $path_info_arr);
+                                        self::$app = $app;
+                                    }
+                                }
+                            }
+                            self::$path_info = $path_info;
+                            self::$base_url = self::$config['core']['url']['apps'];
+
+                            $request_mode = 'app';
+                        }
+                    }
+                }
+
+                if (self::$app && true!==self::$app)
+                {
+                    # 已获取到APP
+                    $app_dir = DIR_APPS . self::$app . DS;
+
+                    if (!is_dir($app_dir))
+                    {
+                        self::show_error('not found the app: :app', array(':app' => self::$app));
+                    }
+
+                    $request_mode = 'app';
+                }
+            }
+        }
     }
 }

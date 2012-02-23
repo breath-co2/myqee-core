@@ -159,37 +159,36 @@ abstract class Core
             \Debug\Profiler::setup();
         }
 
-        \register_shutdown_function(
-            function()
-            {
-                if (!\IS_CLI)
+        if (!\IS_CLI)
+        {
+            \register_shutdown_function(
+                function()
                 {
                     \HttpIO::send_headers();
-                }
-
-                echo '<br><pre>';
-                echo \microtime(1)-\START_TIME;
-
-                echo "\n";
-                echo ((\memory_get_usage()-\START_MEMORY)/1024).'kb';
-                echo "\n";
-                echo (\memory_get_usage()/1024).'kb';
-                echo "\n";
-
-                echo '<br><hr>include path<br>';
-                \print_r(\Bootstrap::$include_path);
-
-                \print_r(\get_included_files());
-
-                echo '</pre>';
-
-                if (!\IS_CLI)
-                {
                     # 输出内容
                     echo \HttpIO::$body;
+
+
+
+                    /////////TEST
+                    echo '<br><pre>';
+                    echo \microtime(1)-\START_TIME;
+
+                    echo "\n";
+                    echo ((\memory_get_usage()-\START_MEMORY)/1024).'kb';
+                    echo "\n";
+                    echo (\memory_get_usage()/1024).'kb';
+                    echo "\n";
+
+                    echo '<br><hr>include path<br>';
+                    \print_r(\Bootstrap::$include_path);
+
+                    \print_r(\get_included_files());
+
+                    echo '</pre>';
                 }
-            }
-        );
+            );
+        }
     }
 
     /**
