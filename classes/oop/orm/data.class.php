@@ -1268,7 +1268,7 @@ class Data
     /**
      * 用于给ORM回调设置ORM对象
      */
-    protected function __orm_callback_set_orm_(OOP_ORM $orm)
+    protected function __orm_callback_set_orm_(\OOP\ORM $orm)
     {
         $this->_orm_object = $orm;
     }

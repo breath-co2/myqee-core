@@ -24,7 +24,9 @@ namespace
     class IpSource extends \Core\IpSource{}
 
     class Member extends \Core\Member{}
+    class Model extends \Core\Model{}
 
+    class Permission extends \Core\Permission{}
     class PinYin extends \Core\PinYin{}
 
     class Session extends \Core\Session{}
@@ -51,6 +53,11 @@ namespace Database
     class Transaction extends \Core\Database\Transaction{}
     class QueryBuilder extends \Core\Database\QueryBuilder{}
     class Expression extends \Core\Database\Expression{}
+}
+
+namespace Database\Driver\MySQLI
+{
+    class Result extends \Core\Database\Driver\MySQLI\Result{}
 }
 
 namespace HttpGet

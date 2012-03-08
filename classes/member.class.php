@@ -223,7 +223,7 @@ namespace Core
         /**
          * 返回用户权限对象
          *
-         * @return Permission
+         * @return \Permission
          */
         public function perm()
         {

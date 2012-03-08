@@ -101,7 +101,7 @@ class Cache
         }
         if ( ! isset(static::$instances[$config_name]) )
         {
-            static::$instances[$config_name] = new Cache($name);
+            static::$instances[$config_name] = new \Cache($name);
         }
         return static::$instances[$config_name];
     }
@@ -121,7 +121,7 @@ class Cache
             $this->config['prefix'] = '';
         }
 
-        if (strtolower($this->config['driver'])=='default')$this->config['driver'] = 'Default_Driver';
+        if (\strtolower($this->config['driver'])=='default')$this->config['driver'] = 'Default_Driver';
 
         $driver = '\\Cache\\Driver\\' . $this->config['driver'];
         if (!\class_exists($driver,true))

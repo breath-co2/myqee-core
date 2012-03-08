@@ -284,8 +284,8 @@ class Database extends \Database\QueryBuilder
         }
         if ($value)
         {
-            $this->columns(array_keys($value));
-            $this->values(array_values($value));
+            $this->columns(\array_keys($value));
+            $this->values(\array_values($value));
         }
         $sql = $this->compile('insert');
 
@@ -364,8 +364,8 @@ class Database extends \Database\QueryBuilder
         }
         if ($value)
         {
-            $this->columns(array_keys($value));
-            $this->values(array_values($value));
+            $this->columns(\array_keys($value));
+            $this->values(\array_values($value));
         }
         if ($where)
         {
@@ -421,7 +421,7 @@ class Database extends \Database\QueryBuilder
      */
     public function create_database($database, $charset = null, $collate = null)
     {
-        if (method_exists($this->driver, 'create_database'))
+        if (\method_exists($this->driver, 'create_database'))
         {
             return $this->driver->create_database($database, $charset, $collate);
         }

@@ -1,6 +1,6 @@
 <?php
-namespace Core;
-
+namespace Core
+{
 /**
  * 核心类
  *
@@ -169,23 +169,25 @@ abstract class Core
                     echo \HttpIO::$body;
 
 
+                    if ($_GET['test'])
+                    {
+                        /////////TEST
+                        echo '<br><pre>';
+                        echo \microtime(1)-\START_TIME;
 
-                    /////////TEST
-                    echo '<br><pre>';
-                    echo \microtime(1)-\START_TIME;
+                        echo "\n";
+                        echo ((\memory_get_usage()-\START_MEMORY)/1024).'kb';
+                        echo "\n";
+                        echo (\memory_get_usage()/1024).'kb';
+                        echo "\n";
 
-                    echo "\n";
-                    echo ((\memory_get_usage()-\START_MEMORY)/1024).'kb';
-                    echo "\n";
-                    echo (\memory_get_usage()/1024).'kb';
-                    echo "\n";
+                        echo '<br><hr>include path<br>';
+                        \print_r(\Bootstrap::$include_path);
 
-                    echo '<br><hr>include path<br>';
-                    \print_r(\Bootstrap::$include_path);
+                        \print_r(\get_included_files());
 
-                    \print_r(\get_included_files());
-
-                    echo '</pre>';
+                        echo '</pre>';
+                    }
                 }
             );
         }
@@ -194,23 +196,16 @@ abstract class Core
     /**
      * 获取指定key的配置
      *
-     * 若不传key，则返回Core_Config对象，可获取动态配置，例如Core::config()->get();
-     *
      * @param string $key
      * @param mixed $default 在没有获取到config时返回的值,例如 \Core::config('test','abc'); 时当尝试获取test的config时没有，则返回abc
-     * @return mixed|\Core\Config
+     * @return mixed
      */
     public static function config($key = null,$default=null)
     {
-        if ( null===$key )
-        {
-            return static::factory('\\Core\\Config');
-        }
-
         $key_array = \explode('.', $key);
         $key = \array_shift($key_array);
 
-        if (!isset(\Bootstrap::$config[$key]))return $default;
+        if ( !isset(\Bootstrap::$config[$key]) )return $default;
 
         $v = \Bootstrap::$config[$key];
         foreach ($key_array as $i)
@@ -502,7 +497,7 @@ abstract class Core
         static $debug = null;
         if ( null===$debug )
         {
-            if ( !\IS_CLI && \IS_DEBUG && \class_exists('\\Debug',true) )
+            if ( !\IS_CLI && \IS_DEBUG && false!==strpos($_SERVER["HTTP_USER_AGENT"],'FirePHP') && \class_exists('\\Debug',true) )
             {
                 $debug = \Debug::instance();
             }
@@ -611,6 +606,18 @@ abstract class Core
         return true;
     }
 
+    /**
+     * 返回URL对象
+     *
+     * @param string $url URL，若不传，则返回的是Core_Url
+     * @return \Core\Url
+     * @return string
+     */
+    public static function url($url = null)
+    {
+        return \Bootstrap::$base_url . ltrim($url, '/') . ($url!='' && substr($url,-1)!='/' && false===strpos($url,'.') && \Bootstrap::$config['core']['url_suffix']?\Bootstrap::$config['core']['url_suffix']:'');
+    }
+
     public static function test()
     {
         \var_dump(static::$charset);
@@ -675,3 +682,12 @@ class _NoDebug
         return false;
     }
 }
+
+
+}
+
+namespace
+{
+//     use \Core\Core as Core;
+}
+

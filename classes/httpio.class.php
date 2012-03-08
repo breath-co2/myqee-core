@@ -275,6 +275,8 @@ class HttpIO
                 static::$_POST = & $_POST;
                 static::$_COOKIE = & $_COOKIE;
                 static::$_REQUEST = & $_REQUEST;
+
+                static::$uri = \Bootstrap::$path_info;
             }
         }
     }

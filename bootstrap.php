@@ -112,6 +112,13 @@ define('DIR_WWWROOT', DIR_SYSTEM.'wwwroot'.DS);
 define('IS_CLI',(PHP_SAPI==='cli'));
 
 /**
+ * 是否命令行执行
+ *
+ * @var boolean
+ */
+define('IS_WIN',(DS==='\\'));
+
+/**
  * PHP后缀
  *
  * @var string
@@ -161,6 +168,7 @@ function __( $string, array $values = null )
 
     return empty($values)?$string:strtr($string,$values);
 }
+
 
 /**
  * Bootstrap
@@ -259,16 +267,18 @@ final class Bootstrap
             {
                 self::show_error('Please rename the file config.new.php to config.php');
             }
-            $config = array();
 
             $include_config_file = function ( & $config, $file )
             {
                 include $file;
             };
-            $include_config_file($config,DIR_SYSTEM.'config'.EXT);
+            $include_config_file(self::$config,DIR_SYSTEM.'config'.EXT);
 
-            self::$config = $config;
-            unset($config);
+            # debug config
+            if (isset($config['core']['debug_config']) && self::$config['core']['debug_config'] && is_file(self::$config,DIR_SYSTEM.'debug.config'.EXT))
+            {
+                $include_config_file(self::$config,DIR_SYSTEM.'debug.config'.EXT);
+            }
 
             # 请求模式
             $request_mode = '';
@@ -452,7 +462,7 @@ final class Bootstrap
                 }
 
                 # 输出一些系统信息
-                Core::debug()->group( '系统加载的目录' );
+                Core::debug()->group( 'include path' );
                 foreach ( self::$include_path as $value )
                 {
                     Core::debug()->log( Core::debug_path( $value ) );
@@ -461,20 +471,20 @@ final class Bootstrap
 
                 if (self::$project)
                 {
-                    Core::debug()->info('当前项目：'.self::$project);
+                    Core::debug()->info('project: '.self::$project);
                 }
                 elseif ($request_mode=='app')
                 {
-                    Core::debug()->info('系统进入APP模式');
+                    Core::debug()->info('app mode');
                 }
                 else
                 {
-                    Core::debug()->info('当前为默认项目');
+                    Core::debug()->info('default application');
                 }
 
                 if (IS_ADMIN_MODE)
                 {
-                    Core::debug()->info('系统进入后台模式');
+                    Core::debug()->info('admin mode');
                 }
             }
 
@@ -512,10 +522,6 @@ final class Bootstrap
 
         if ($found)
         {
-            if (IS_DEBUG)
-            {
-                Core::debug()->log($found,'寻找到的控制器');
-            }
             require $found['file'];
 
             $class_name = $found['namespace'].'Controller\\'.$found['class'];
@@ -528,18 +534,18 @@ final class Bootstrap
                 $arguments = $found['args'];
                 if ($arguments)
                 {
-                    $action_name = array_shift($arguments);
-                    if (0===strlen($action_name))
+                    $action = current($arguments);
+                    if (0===strlen($action))
                     {
-                        $action_name = 'default';
+                        $action = 'default';
                     }
                 }
                 else
                 {
-                    $action_name = 'index';
+                    $action = 'index';
                 }
 
-                $action_name = 'action_'.$action_name;
+                $action_name = 'action_'.$action;
 
                 if (!method_exists($controller,$action_name))
                 {
@@ -556,6 +562,10 @@ final class Bootstrap
                     {
                         Core::show_404();
                     }
+                }
+                else
+                {
+                    array_shift($arguments);
                 }
 
                 $ispublicmethod = new ReflectionMethod($controller,$action_name);
@@ -671,6 +681,11 @@ final class Bootstrap
             if ( count($class_arr)>1 && in_array($class_arr[0],array('controller','shell','model','orm',)) )
             {
                 $class_dir = array_shift($class_arr);
+
+                if ($class_dir==='orm')
+                {
+                    $class_arr[count($class_arr)-1]  = @preg_replace('#^(.*)_[a-z0-9]+$#i', '$1', $class_arr[count($class_arr)-1] );
+                }
             }
         }
 
@@ -719,6 +734,7 @@ final class Bootstrap
 
                         $class_str = array_pop($old_class_arr);
                         $str = 'namespace '.implode('\\', $old_class_arr).'{'.$abstract.'class '.$class_str.' extends '.$ns_class_name.'{}}';
+
                         eval($str);
                     }
 
@@ -752,6 +768,14 @@ final class Bootstrap
     {
         $dir = trim($dir);
         $file = str_replace(array('/','\\'),DS,trim($file,' /\\'));
+
+        if (!$ext)
+        {
+            if ($dir=='views')
+            {
+                $ext = '.view'.EXT;
+            }
+        }
 
         if ($ext && $ext[0]!='.')$ext='.'.$ext;
 
@@ -835,7 +859,7 @@ final class Bootstrap
     }
 
     /**
-     * 根据密码获取一个hash
+     * 根据用户名和密码获取一个hash
      *
      * @param string $username
      * @param string $password
@@ -843,8 +867,7 @@ final class Bootstrap
      */
     public static function get_debug_hash( $username , $password )
     {
-        static $config_str = null;
-        if (null === $config_str) $config_str = var_export(self::$config['core']['debug_open_password'], true);
+        $config_str = var_export(self::$config['core']['debug_open_password'], true);
         return md5($config_str . '_open$&*@debug' . $password . '_' . $username );
     }
 
@@ -856,6 +879,12 @@ final class Bootstrap
     private function find_controller($uri)
     {
         $uri = strtolower('/' . trim($uri, ' /'));
+
+        if (self::$config['core']['url_suffix'] && substr($uri,-strlen(self::$config['core']['url_suffix']))==self::$config['core']['url_suffix'])
+        {
+            $uri = substr($uri,0,-strlen(self::$config['core']['url_suffix']));
+        }
+
         if ($uri != '/')
         {
             $uri_arr = explode('/', $uri);
@@ -998,7 +1027,10 @@ final class Bootstrap
                 }
 
                 $tmpdir = $tmp_path . $real_path . $real_uri_path . DS;
-                $find_path_log[] = $tmpdir;
+                if (IS_DEBUG)
+                {
+                    $find_path_log[] = Core::debug_path($tmpdir);
+                }
                 $real_path .= $real_uri_path . DS;
                 $real_class .= $real_uri_class . DS;
                 $tmp_str .= $uri_path . DS;
@@ -1074,7 +1106,10 @@ final class Bootstrap
                     list($ns, $tmp_path, $real_path, $ids) = $tmp_arr;
                     $path_str = str_replace('/', '\\', ltrim($real_path, '/'));
                     $tmpfile = $tmp_path . $tmp_class . self::$dir_setting['controller'][1] . EXT;
-                    $find_log[] = $tmpfile;
+                    if (IS_DEBUG)
+                    {
+                        $find_log[] = Core::debug_path($tmpfile);
+                    }
 
                     if (is_file($tmpfile))
                     {
@@ -1082,12 +1117,13 @@ final class Bootstrap
                         {
                             $ids = array_merge($ids, $the_id);
                         }
-                        $found = array(
-                            'file' => $tmpfile,
-                            'class' => $path_str . $real_class,
-                            'args' => $args,
-                            'ids' => $ids,
-                            'namespace' => $ns
+                        $found = array
+                        (
+                            'file'      => $tmpfile,
+                            'namespace' => $ns,
+                            'class'     => $path_str . $real_class,
+                            'args'      => $args,
+                            'ids'       => $ids,
                         );
 
                         break 2;
@@ -1098,8 +1134,30 @@ final class Bootstrap
 
         if (IS_DEBUG)
         {
-            Core::debug()->log($find_path_log,'搜寻控制器目录');
-            Core::debug()->log($find_log,'搜寻控制器文件');
+            Core::debug()->group('find controller path');
+            foreach ( $find_path_log as $value )
+            {
+                Core::debug()->log($value);
+            }
+            Core::debug()->groupEnd();
+
+            Core::debug()->group('find controller file');
+            foreach ( $find_log as $value )
+            {
+                Core::debug()->log($value);
+            }
+            Core::debug()->groupEnd();
+
+            if ($found)
+            {
+                $found2 = $found;
+                $found2['file'] = Core::debug_path($found2['file']);
+                Core::debug()->log($found2,'found contoller');
+            }
+            else
+            {
+                Core::debug()->log($uri,'not found contoller');
+            }
         }
 
         return $found;
@@ -1117,80 +1175,76 @@ final class Bootstrap
      */
     private static function _setup_by_url( & $request_mode )
     {
-        $setup_path_info = function ()
+        # 处理base_url
+        if (null === Bootstrap::$base_url && isset($_SERVER["SCRIPT_NAME"]) && $_SERVER["SCRIPT_NAME"])
         {
-            # 处理base_url
-            if (null === Bootstrap::$base_url && isset($_SERVER["SCRIPT_NAME"]) && $_SERVER["SCRIPT_NAME"])
+            $base_url_len = strrpos($_SERVER["SCRIPT_NAME"], '/');
+            if ($base_url_len)
             {
-                $base_url_len = strrpos($_SERVER["SCRIPT_NAME"], '/');
-                if ($base_url_len)
+                $base_url = substr($_SERVER["SCRIPT_NAME"], 0, $base_url_len);
+                if (preg_match('#^(.*)/wwwroot$#', $base_url, $m))
                 {
-                    $base_url = substr($_SERVER["SCRIPT_NAME"], 0, $base_url_len);
-                    if (preg_match('#^(.*)/wwwroot$#', $base_url, $m))
-                    {
-                        # 特殊处理wwwroot目录
-                        $base_url = $m[1];
-                        $base_url_len = strlen($base_url);
-                    }
+                    # 特殊处理wwwroot目录
+                    $base_url = $m[1];
+                    $base_url_len = strlen($base_url);
+                }
 
-                    if (strtolower(substr($_SERVER['REQUEST_URI'], 0, $base_url_len)) == strtolower($base_url))
-                    {
-                        Bootstrap::$base_url = $base_url;
-                    }
+                if (strtolower(substr($_SERVER['REQUEST_URI'], 0, $base_url_len)) == strtolower($base_url))
+                {
+                    Bootstrap::$base_url = $base_url;
                 }
             }
+        }
 
-            if (isset($_SERVER['PATH_INFO']))
+        if (isset($_SERVER['PATH_INFO']))
+        {
+            $pathinfo = $_SERVER["PATH_INFO"];
+        }
+        else
+        {
+            if (isset($_SERVER["PATH_TRANSLATED"]))
             {
-                $pathinfo = $_SERVER["PATH_INFO"];
+                list($null, $pathinfo) = explode('index' . EXT, $_SERVER["PATH_TRANSLATED"], 2);
+            }
+            elseif (isset($_SERVER['REQUEST_URI']))
+            {
+                $request_uri = $_SERVER['REQUEST_URI'];
+
+                if (Bootstrap::$base_url)
+                {
+                    $request_uri = substr($request_uri, strlen(Bootstrap::$base_url));
+                }
+                // 移除查询参数
+                list($pathinfo) = explode('?', $request_uri, 2);
+            }
+            elseif (isset($_SERVER['PHP_SELF']))
+            {
+                $pathinfo = $_SERVER['PHP_SELF'];
+            }
+            elseif (isset($_SERVER['REDIRECT_URL']))
+            {
+                $pathinfo = $_SERVER['REDIRECT_URL'];
             }
             else
             {
-                if (isset($_SERVER["PATH_TRANSLATED"]))
-                {
-                    list($null, $pathinfo) = explode('index' . EXT, $_SERVER["PATH_TRANSLATED"], 2);
-                }
-                elseif (isset($_SERVER['REQUEST_URI']))
-                {
-                    $request_uri = $_SERVER['REQUEST_URI'];
-
-                    if (Bootstrap::$base_url)
-                    {
-                        $request_uri = substr($request_uri, strlen(Bootstrap::$base_url));
-                    }
-                    // 移除查询参数
-                    list($pathinfo) = explode('?', $request_uri, 2);
-                }
-                elseif (isset($_SERVER['PHP_SELF']))
-                {
-                    $pathinfo = $_SERVER['PHP_SELF'];
-                }
-                elseif (isset($_SERVER['REDIRECT_URL']))
-                {
-                    $pathinfo = $_SERVER['REDIRECT_URL'];
-                }
-                else
-                {
-                    $pathinfo = false;
-                }
+                $pathinfo = false;
             }
+        }
 
-            # 过滤pathinfo传入进来的服务器默认页
-            if (false !== $pathinfo && ($indexpagelen = strlen(Bootstrap::$config['core']['server_index_page'])) && substr($pathinfo, -1 - $indexpagelen) == '/' . Bootstrap::$config['core']['server_index_page'])
-            {
-                $pathinfo = substr($pathinfo, 0, -$indexpagelen);
-            }
-            $pathinfo = trim($pathinfo);
+        # 过滤pathinfo传入进来的服务器默认页
+        if (false !== $pathinfo && ($indexpagelen = strlen(Bootstrap::$config['core']['server_index_page'])) && substr($pathinfo, -1 - $indexpagelen) == '/' . Bootstrap::$config['core']['server_index_page'])
+        {
+            $pathinfo = substr($pathinfo, 0, -$indexpagelen);
+        }
+        $pathinfo = trim($pathinfo);
 
-            if (!isset($_SERVER["PATH_INFO"]))
-            {
-                $_SERVER["PATH_INFO"] = $pathinfo;
-            }
+        if (!isset($_SERVER["PATH_INFO"]))
+        {
+            $_SERVER["PATH_INFO"] = $pathinfo;
+        }
 
-            Bootstrap::$path_info = $pathinfo;
-        };
+        Bootstrap::$path_info = $pathinfo;
 
-        $setup_path_info();
 
         $get_path_info = function (& $url)
         {
@@ -1403,7 +1457,7 @@ final class Bootstrap
 
                     if (!is_dir($app_dir))
                     {
-                        self::show_error('not found the app: :app', array(':app' => self::$app));
+                        self::show_error('can not found the app: :app', array(':app' => self::$app));
                     }
 
                     $request_mode = 'app';

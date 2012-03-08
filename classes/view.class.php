@@ -260,7 +260,7 @@ class View
         try
         {
             // Load the view within the current scope
-            include $myqee_view_filename;
+            require $myqee_view_filename;
         }
         catch ( \Exception $e )
         {

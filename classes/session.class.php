@@ -19,7 +19,8 @@ class Session
     protected static $instance;
 
     // Protected key names (cannot be set by the user)
-    protected static $protect = array(
+    protected static $protect = array
+    (
     	'SID' => 1,
     	'_flash_session_' => 1
     );
@@ -35,12 +36,12 @@ class Session
     protected $driver;
 
     /**
-     * @var Member
+     * @var \Member
      */
     protected static $member;
 
     /**
-     * @return Session
+     * @return \Session
      */
     public static function instance()
     {
@@ -105,21 +106,36 @@ class Session
 
             $_SESSION['SID'] = $this->driver->session_id();
 
+            if ( !isset($_SESSION['_last_actived_time_']) || \TIME-600>$_SESSION['_last_actived_time_'] )
+            {
+            # 更新最后活动时间 10分钟更新一次
+                $_SESSION['_last_actived_time_'] = \TIME;
+            }
+
             # 确保关闭前执行保存
-            \Core::register_shutdown_function(array('Session', 'write_close'));
+            \register_shutdown_function(array('\\Session', 'write_close'));
 
             static::$instance = $this;
 
-            if ( null===static::$member && isset($_SESSION['member']) )
-            {
-                static::$member = new \Member($_SESSION['member']);
-            }
+            static::ini_member();
+        }
+    }
+
+    /**
+     * 构造self::$member
+     */
+    protected function ini_member()
+    {
+        if ( null===static::$member && isset($_SESSION['member']) )
+        {
+            static::$member = new \Member($_SESSION['member']);
         }
     }
 
     /**
      * 开启SESSION
-     * @return Session
+     *
+     * @return \Session
      */
     public function start()
     {
@@ -149,22 +165,24 @@ class Session
     /**
      * 设置用户
      *
-     * @param Member $member
-     * @return Session
+     * @param \Member $member
+     * @return \Session
      */
-    public function set_member(Member $member)
+    public function set_member(\Member $member)
     {
         static::$member = $member;
         if ( $member->id>0 )
         {
             # 设置用户数据
+            $_SESSION['member_id'] = $member->id;
+            $_SESSION['member_password'] = $member->password;
             $member_data = $member->get_field_data();
             $_SESSION['member'] = $member_data;
         }
         else
         {
             # 游客数据则清空
-            unset($_SESSION['member']);
+            unset($_SESSION['member_id']);
         }
         return $this;
     }
@@ -176,13 +194,13 @@ class Session
      */
     public function member_id()
     {
-        return $_SESSION['member']['id'];
+        return $_SESSION['member_id'];
     }
 
     /**
      * 获取用户对象
      *
-     * @return Member
+     * @return \Member
      */
     public function member()
     {
@@ -194,20 +212,22 @@ class Session
         return static::$member;
     }
 
+    /**
+     * 最后活动时间
+     *
+     * @return int
+     */
     public function last_actived_time()
     {
-        if ( !isset($_SESSION['_last_actived_time_']) )
-        {
-            $_SESSION['_last_actived_time_'] = \TIME;
-        }
         return $_SESSION['_last_actived_time_'];
     }
 
     /**
      * 此方法用于保存session数据
+
      * 只执行一次，系统在关闭前会执行
      *
-     * @return  void
+     * @return void
      */
     public static function write_close()
     {
@@ -216,7 +236,8 @@ class Session
             return false;
         }
         static $run = null;
-        if ( $run === null )
+
+        if ($run === null)
         {
             $run = true;
 
@@ -231,12 +252,8 @@ class Session
                 $member_data = static::$member->get_field_data();
 
                 $_SESSION['member'] = $member_data;
-            }
-
-            if ( !isset($_SESSION['_last_actived_time_']) || \TIME - 600 > $_SESSION['_last_actived_time_'] )
-            {
-                # 更新最后活动时间 10分钟更新一次
-                $_SESSION['_last_actived_time_'] = \TIME;
+                $_SESSION['member_id'] = static::$member->id;
+                $_SESSION['member_password'] = static::$member->password;
             }
 
             static::$instance->driver->write_close();
@@ -244,7 +261,7 @@ class Session
     }
 
     /**
-     * Set a session variable.
+     * 设置一个session数据
      *
      * @param   string|array  key, or array of values
      * @param   mixed		 value (if keys is not an array)
@@ -254,7 +271,7 @@ class Session
     {
         if ( empty($keys) ) return false;
 
-        if ( ! \is_array($keys) )
+        if ( !\is_array($keys) )
         {
             $keys = array($keys => $val);
         }
@@ -269,7 +286,7 @@ class Session
     }
 
     /**
-     * Set a flash variable.
+     * 设置一个Session闪存数据
      *
      * @param   string|array  key, or array of values
      * @param   mixed		 value (if keys is not an array)

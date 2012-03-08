@@ -94,7 +94,7 @@ abstract class ORM
                 {
                     $classname = (string)$tmpobj;
                 }
-                if ( \preg_match('#^\\ORM\\([a-z0-9_\\]+)_Finder$#i', $classname, $m) )
+                if ( \preg_match('#^ORM\\\\([a-z0-9\\\\_]+)_Finder$#i', $classname, $m) )
                 {
                     $this->_orm_name = $m[1];
                     break;

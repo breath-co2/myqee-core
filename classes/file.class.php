@@ -442,11 +442,11 @@ class File
 
 					if (!isset($types[$mime]))
 					{
-						$types[$mime] = array( (string) $ext);
+						$types[$mime] = array( (string)$ext );
 					}
 					elseif (!\in_array($ext, $types[$mime]))
 					{
-						$types[$mime][] = (string) $ext;
+						$types[$mime][] = (string)$ext;
 					}
 				}
 			}

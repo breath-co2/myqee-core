@@ -39,7 +39,7 @@ class Default_Driver
         }
         $this->destroy();
 
-        $cookieconfig = Core::config('cookie');
+        $cookieconfig = \Core::config('cookie');
         // Set the session cookie parameters
         \session_set_cookie_params(\Session::$config['expiration'], $cookieconfig['path'], $cookieconfig['domain'], $cookieconfig['secure'], $cookieconfig['httponly']);
 
