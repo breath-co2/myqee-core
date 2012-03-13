@@ -26,6 +26,7 @@ namespace
     class Member extends \Core\Member{}
     class Model extends \Core\Model{}
 
+    class Pagination extends \Core\Pagination{}
     class Permission extends \Core\Permission{}
     class PinYin extends \Core\PinYin{}
 

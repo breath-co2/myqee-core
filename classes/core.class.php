@@ -34,6 +34,13 @@ abstract class Core
     public static $charset;
 
     /**
+     * 当前项目
+     *
+     * @var string
+     */
+    public static $project;
+
+    /**
      * 执行Core::close_all_connect()方法时会关闭链接的类和方法名的列队，可通过Core::add_close_connect_class()方法进行设置增加
      *
      *   array(
@@ -118,6 +125,8 @@ abstract class Core
                     static::import_library($lib);
                 }
             }
+
+            static::$project =& \Bootstrap::$project;
 
             static::$charset = \Bootstrap::$config['core']['charset'];
 
@@ -615,7 +624,8 @@ abstract class Core
      */
     public static function url($url = null)
     {
-        return \Bootstrap::$base_url . ltrim($url, '/') . ($url!='' && substr($url,-1)!='/' && false===strpos($url,'.') && \Bootstrap::$config['core']['url_suffix']?\Bootstrap::$config['core']['url_suffix']:'');
+        list($url,$query) = explode('?', $url , 2);
+        return \Bootstrap::$base_url . ltrim($url, '/') . ($url!='' && substr($url,-1)!='/' && false===strpos($url,'.') && \Bootstrap::$config['core']['url_suffix']?\Bootstrap::$config['core']['url_suffix']:'') . ($query?'?'.$query:'');
     }
 
     public static function test()

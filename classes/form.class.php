@@ -324,7 +324,7 @@ class Form
                     }
 
                     // Change the option to the HTML string
-                    $options[$value] = '<option' . \html::attributes($option) . '>' . static::chars($name, false) . '</option>';
+                    $options[$value] = '<option' . \html::attributes($option) . '>' . \html::chars($name, false) . '</option>';
                 }
             }
 
