@@ -308,7 +308,7 @@ final class Bootstrap
             }
             else
             {
-                self::_setup_by_url($request_mode);
+                self::setup_by_url($request_mode);
 
                 if (isset(self::$config['core']['charset']))
                 {
@@ -414,7 +414,13 @@ final class Bootstrap
              *
              * @var boolean
              */
-            define('IS_SYSTEM_MODE',false);
+            define('IS_SYSTEM_MODE',isset($_SERVER['HTTP_X_MYQEE_SYSTEM_HASH']));
+
+            if (IS_SYSTEM_MODE)
+            {
+                # 设置控制器在[system]目录下
+                self::$dir_setting['controller'][0] .= DS.'[system]';
+            }
 
             # 如果有autoload目录，则设置加载目录
             if ( isset(self::$config['core']['libraries']['autoload']) && is_array(self::$config['core']['libraries']['autoload']) && self::$config['core']['libraries']['autoload'] )
@@ -430,8 +436,11 @@ final class Bootstrap
                     $load_library(self::$config['core']['libraries']['cli']);
                 }
 
-                # 控制器在[shell]目录下
-                self::$dir_setting['controller'][0] .= DS.'[shell]';
+                if (!IS_SYSTEM_MODE)
+                {
+                    # 控制器在[shell]目录下
+                    self::$dir_setting['controller'][0] .= DS.'[shell]';
+                }
             }
             elseif (IS_ADMIN_MODE)
             {
@@ -441,8 +450,11 @@ final class Bootstrap
                     $load_library(self::$config['core']['libraries']['admin']);
                 }
 
-                # 控制器在[admin]目录下
-                self::$dir_setting['controller'][0] .= DS.'[admin]';
+                if (!IS_SYSTEM_MODE)
+                {
+                    # 控制器在[admin]目录下
+                    self::$dir_setting['controller'][0] .= DS.'[admin]';
+                }
             }
             elseif ($request_mode=='app')
             {
@@ -488,12 +500,12 @@ final class Bootstrap
                 }
             }
 
-
             unset($load_library);
 
             Core::setup();
         }
 
+        # 直接执行
         if ($auto_execute)
         {
             if (IS_CLI)
@@ -507,6 +519,7 @@ final class Bootstrap
                 HttpIO::$body = ob_get_clean();
             }
 
+            # 全部全部连接
             Core::close_all_connect();
         }
     }
@@ -578,8 +591,17 @@ final class Bootstrap
                 # 将参数传递给控制器
                 $controller->action = $action_name;
                 $controller->controller = $found['class'];
-                $controller->arguments = $arguments;
                 $controller->ids = $found['ids'];
+
+                if (IS_SYSTEM_MODE)
+                {
+                    # 系统内部调用参数
+                    $controller->arguments = @unserialize(HttpIO::POST('data',HttpIO::PARAM_TYPE_OLDDATA));
+                }
+                else
+                {
+                    $controller->arguments = $arguments;
+                }
 
                 # 前置方法
                 if (method_exists($controller,'before'))
@@ -1173,7 +1195,7 @@ final class Bootstrap
     /**
      * 根据URL初始化
      */
-    private static function _setup_by_url( & $request_mode )
+    private static function setup_by_url( & $request_mode )
     {
         # 处理base_url
         if (null === Bootstrap::$base_url && isset($_SERVER["SCRIPT_NAME"]) && $_SERVER["SCRIPT_NAME"])

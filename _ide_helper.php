@@ -19,6 +19,7 @@ namespace
     class html extends \Core\html{}
     class HttpGet extends \Core\HttpGet{}
     class HttpIO extends \Core\HttpIO{}
+    class HttpHost extends \Core\HttpHost{}
 
     class I18n extends \Core\I18n{}
     class IpSource extends \Core\IpSource{}
@@ -44,6 +45,12 @@ namespace Cache
     class Database extends \Core\Cache\Database{}
     class File extends \Core\Cache\File{}
     class Memcache extends \Core\Cache\Memcache{}
+}
+
+
+namespace Controller
+{
+    class File extends \Core\Controller\File{}
 }
 
 

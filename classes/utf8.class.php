@@ -25,11 +25,6 @@ namespace Core;
 class utf8
 {
     /**
-     * @var  boolean  does the server support UTF-8 natively?
-     */
-    public static $server_utf8 = null;
-
-    /**
      * @var  array  list of called methods
      */
     public static $called = array();
@@ -381,11 +376,11 @@ class utf8
      *
      * @param   string   string being measured for length
      * @return  integer
-     * @uses	utf8::$server_utf8
+
      */
     public static function strlen($str)
     {
-        if (static::$server_utf8)return \mb_strlen($str, \Core::$charset);
+        if (\IS_MBSTRING)return \mb_strlen($str, \Core::$charset);
 
         if (static::is_ascii($str))return \strlen($str);
         return \strlen(\utf8_decode($str));
@@ -403,13 +398,13 @@ class utf8
      * @param   integer  offset from which character in haystack to start searching
      * @return  integer  position of needle
      * @return  boolean  false if the needle is not found
-     * @uses	utf8::$server_utf8
+
      */
     public static function strpos($str, $search, $offset = 0)
     {
         $offset = (int)$offset;
 
-        if ( static::$server_utf8 ) return \mb_strpos($str, $search, $offset, \Core::$charset);
+        if ( \IS_MBSTRING ) return \mb_strpos($str, $search, $offset, \Core::$charset);
 
         if ( static::is_ascii($str) && static::is_ascii($search) ) return \strpos($str, $search, $offset);
 
@@ -437,13 +432,13 @@ class utf8
      * @param   integer  offset from which character in haystack to start searching
      * @return  integer  position of needle
      * @return  boolean  false if the needle is not found
-     * @uses	utf8::$server_utf8
+
      */
     public static function strrpos($str, $search, $offset = 0)
     {
         $offset = (int)$offset;
 
-        if ( static::$server_utf8 ) return \mb_strrpos($str, $search, $offset, \Core::$charset);
+        if ( \IS_MBSTRING ) return \mb_strrpos($str, $search, $offset, \Core::$charset);
 
         if ( static::is_ascii($str) && static::is_ascii($search) ) return \strrpos($str, $search, $offset);
 
@@ -470,12 +465,12 @@ class utf8
      * @param   integer  offset
      * @param   integer  length limit
      * @return  string
-     * @uses	utf8::$server_utf8
+
      * @uses	Kohana::$charset
      */
     public static function substr($str, $offset, $length = null)
     {
-        if ( static::$server_utf8 ) return ($length === null) ? \mb_substr($str, $offset, \mb_strlen($str), \Core::$charset) : \mb_substr($str, $offset, $length, \Core::$charset);
+        if ( \IS_MBSTRING ) return ($length === null) ? \mb_substr($str, $offset, \mb_strlen($str), \Core::$charset) : \mb_substr($str, $offset, $length, \Core::$charset);
 
         if ( static::is_ascii($str) ) return ($length === null) ? \substr($str, $offset) : \substr($str, $offset, $length);
 
@@ -569,11 +564,11 @@ class utf8
      * @author  Andreas Gohr <andi@splitbrain.org>
      * @param   string   mixed case string
      * @return  string
-     * @uses	utf8::$server_utf8
+
      */
     public static function strtolower($str)
     {
-        if ( static::$server_utf8 ) return \mb_strtolower($str, \Core::$charset);
+        if ( \IS_MBSTRING ) return \mb_strtolower($str, \Core::$charset);
 
         if ( static::is_ascii($str) ) return \strtolower($str);
 
@@ -820,12 +815,12 @@ class utf8
      * @author  Andreas Gohr <andi@splitbrain.org>
      * @param   string   mixed case string
      * @return  string
-     * @uses	utf8::$server_utf8
+
      * @uses	Kohana::$charset
      */
     public static function strtoupper($str)
     {
-        if ( static::$server_utf8 ) return \mb_strtoupper($str, \Core::$charset);
+        if ( \IS_MBSTRING ) return \mb_strtoupper($str, \Core::$charset);
 
         if ( static::is_ascii($str) ) return \strtoupper($str);
 
@@ -1094,7 +1089,6 @@ class utf8
      * @author  Harry Fuecks <hfuecks@gmail.com>
      * @param   string   mixed case string
      * @return  string
-     * @uses	utf8::$server_utf8
      */
     public static function ucwords($str)
     {
@@ -1755,6 +1749,3 @@ class utf8
     }
 
 }
-
-
-\utf8::$server_utf8 = \Core::server_utf8();

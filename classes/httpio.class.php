@@ -341,7 +341,7 @@ class HttpIO
         $data = static::_key_string(static::$$datatype, $key);
         if ( null === $data ) return null;
 
-        if ( ! $type )
+        if ( !$type )
         {
             # 未安全过滤的数据
             $data = static::sanitize_decode($data);

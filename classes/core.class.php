@@ -1,6 +1,6 @@
 <?php
-namespace Core
-{
+namespace Core;
+
 /**
  * 核心类
  *
@@ -159,6 +159,12 @@ abstract class Core
                 \header('X-Powered-By: PHP/' . \PHP_VERSION . ', MyQEE/' . static::VERSION );
 
                 \HttpIO::setup();
+            }
+
+            if ( \IS_SYSTEM_MODE && false===static::check_system_request_allow() )
+            {
+                # 内部请求验证不通过
+                static::show_500('system request hash error');
             }
 
         }
@@ -506,7 +512,7 @@ abstract class Core
         static $debug = null;
         if ( null===$debug )
         {
-            if ( !\IS_CLI && \IS_DEBUG && false!==strpos($_SERVER["HTTP_USER_AGENT"],'FirePHP') && \class_exists('\\Debug',true) )
+            if ( !\IS_CLI && \IS_DEBUG && false!==\strpos($_SERVER["HTTP_USER_AGENT"],'FirePHP') && \class_exists('\\Debug',true) )
             {
                 $debug = \Debug::instance();
             }
@@ -625,12 +631,174 @@ abstract class Core
     public static function url($url = null)
     {
         list($url,$query) = explode('?', $url , 2);
-        return \Bootstrap::$base_url . ltrim($url, '/') . ($url!='' && substr($url,-1)!='/' && false===strpos($url,'.') && \Bootstrap::$config['core']['url_suffix']?\Bootstrap::$config['core']['url_suffix']:'') . ($query?'?'.$query:'');
+        return \Bootstrap::$base_url . ltrim($url, '/') . ($url!='' && \substr($url,-1)!='/' && false===\strpos($url,'.') && \Bootstrap::$config['core']['url_suffix']?\Bootstrap::$config['core']['url_suffix']:'') . ($query?'?'.$query:'');
     }
 
-    public static function test()
+    /**
+     * 记录日志
+     *
+     * @param string $msg 日志内容
+     * @param string $type 类型，例如：log,error,debug 等
+     * @return boolean
+     */
+    public static function log($msg,$type = 'log')
     {
-        \var_dump(static::$charset);
+        # log配置
+        $log_config = static::config('log');
+
+        if ($log_config['file'])
+        {
+            $file = \date($log_config['file']);
+        }
+        else
+        {
+            $file = \date('Y/m/d/');
+        }
+        $file .= $type.'.log';
+
+        $dir = \trim(\dirname($file),'/');
+
+        # 如果目录不存在，则创建
+        if (!\is_dir(\DIR_LOG.$dir))
+        {
+            $temp = \explode('/', \str_replace('\\', '/', $dir) );
+            $cur_dir = '';
+            for( $i=0; $i<\count($temp); $i++ )
+            {
+                $cur_dir .= $temp[$i] . "/";
+                if ( !\is_dir(\DIR_LOG.$cur_dir) )
+                {
+                    @\mkdir(\DIR_LOG.$cur_dir,0755);
+                }
+            }
+        }
+
+        # 内容格式化
+        if ($log_config['format'])
+        {
+            $format = $log_config['format'];
+        }
+        else
+        {
+            # 默认格式
+            $format = ':time - :host::port - :url - :msg';
+        }
+
+        # 获取日志内容
+        $data = static::log_format($msg,$type,$format);
+
+        if (\IS_DEBUG)
+        {
+            # 如果有开启debug模式，输出到浏览器
+            static::debug()->log($data,$type);
+        }
+        # 保存日志
+        return @\file_put_contents(\DIR_LOG.$file, $data.CRLF , \FILE_APPEND)?true:false;
+    }
+
+    /**
+     * 用于保存日志时格式化内容，如需要特殊格式可以自行扩展
+     *
+     * @param string $msg
+     * @param string $format
+     * @return string
+     */
+    protected static function log_format($msg,$type,$format)
+    {
+        $value = array
+        (
+            ':time'    => \date('Y-m-d H:i:s'),            //当前时间
+            ':url'     => $_SERVER['SCRIPT_URI'],          //请求的URL
+            ':msg'     => $msg,                            //日志信息
+            ':type'    => $type,                           //日志类型
+            ':host'    => $_SERVER["SERVER_ADDR"],         //服务器
+            ':port'    => $_SERVER["SERVER_PORT"],         //端口
+            ':ip'      => \HttpIO::IP,                     //请求的IP
+            ':agent'   => $_SERVER["HTTP_USER_AGENT"],     //客户端信息
+            ':referer' => $_SERVER["HTTP_REFERER"],        //来源页面
+        );
+
+        return \strtr($format,$value);
+    }
+
+    /**
+     * 检查内部调用HASH是否有效
+     *
+     * @return boolean
+     */
+    protected static function check_system_request_allow()
+    {
+        $hash = $_SERVER['HTTP_X_MYQEE_SYSTEM_HASH'];    //请求验证HASH
+        $time = $_SERVER['HTTP_X_MYQEE_SYSTEM_TIME'];    //请求验证时间
+        if (!$hash||!$time)return false;
+
+        # 请求时效检查
+        if ( \microtime(1)-$time>600 )
+        {
+            static::log('system request timeout','system-request');
+            return false;
+        }
+
+        # 验证IP
+        if ( '127.0.0.1' != \HttpIO::IP && \HttpIO::IP != $_SERVER["SERVER_ADDR"] )
+        {
+            $allow_ip = static::config('core.system_exec_allow_ip');
+
+            if (\is_array($allow_ip) && $allow_ip)
+            {
+                $allow = false;
+                foreach ($allow_ip as $ip)
+                {
+                    if (\HttpIO::IP==$ip)
+                    {
+                        $allow = true;
+                        break;
+                    }
+
+                    if (\strpos($allow_ip,'*'))
+                    {
+                        # 对IP进行匹配
+                        if (\preg_match('#^'.\str_replace('\\*','[^\.]+',\preg_quote($allow_ip,'#')).'$#',\HttpIO::IP))
+                        {
+                            $allow = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!$allow)
+                {
+                    static::log('system request not allow ip:'.\HttpIO::IP,'system-request');
+                    return false;
+                }
+            }
+        }
+
+        $body = \http_build_query(\HttpIO::POST(null,\HttpIO::PARAM_TYPE_OLDDATA));
+
+        # 系统调用密钥
+        $system_exec_pass = static::config('core.system_exec_key');
+
+        if ($system_exec_pass && \strlen($system_exec_pass)>=10)
+        {
+            # 如果有则使用系统调用密钥
+            $newhash = \sha1($body.$time.$system_exec_pass.$_SERVER["SERVER_ADDR"].':'.$_SERVER["SERVER_PORT"]);
+        }
+        else
+        {
+            # 没有，则用系统配置和数据库加密
+            $newhash = \sha1($body.$time.\serialize(static::config('core')).\serialize(static::config('database')).$_SERVER["SERVER_ADDR"].':'.$_SERVER["SERVER_PORT"]);
+        }
+
+        if ( $newhash==$hash )
+        {
+            return true;
+        }
+        else
+        {
+            static::log('system request hash error','system-request');
+            return false;
+        }
     }
 }
 
@@ -692,12 +860,3 @@ class _NoDebug
         return false;
     }
 }
-
-
-}
-
-namespace
-{
-//     use \Core\Core as Core;
-}
-

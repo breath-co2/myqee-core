@@ -48,15 +48,44 @@ class Controller
     }
 
     /**
+     * 输出错误信息
+     *
+     * @param string $msg
+     * @param array $data
+     * @param int $code
+     */
+    protected static function show_error( $msg = 'error' )
+    {
+        static::show_message($msg , null , -1 );
+    }
+
+    /**
+     * 输出成功信息
+     *
+     * @param string $msg
+     * @param array $data
+     * @param int $code
+     */
+    protected static function show_success( $msg = 'success' , $data = array() )
+    {
+        static::show_message( $msg , $data , 1 );
+    }
+
+    /**
      * 输出信息
      *
      * @param string $msg
      * @param array $data
      * @param int $code
      */
-    protected static function show_message($msg,$data=array(),$code=0)
+    protected static function show_message( $msg , $data = array() , $code=0 )
     {
-        if (\HttpIO::IS_AJAX)
+        if (\IS_SYSTEM_MODE)
+        {
+            # 系统内部调用模式
+
+        }
+        elseif (\HttpIO::IS_AJAX)
         {
             # AJAX 模式
 
@@ -65,6 +94,8 @@ class Controller
         {
 
         }
+
+        exit;
     }
 
     /**
@@ -86,7 +117,7 @@ class Controller
      * @uses    \Core_url::site
      * @uses    \Request::send_headers
      */
-    protected function redirect($url, $code = 302)
+    protected static function redirect($url, $code = 302)
     {
         \HttpIO::redirect($url, $code);
     }

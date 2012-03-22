@@ -43,7 +43,7 @@ class Form
         if ( \strpos($action, '://') === false )
         {
             // Make the URI absolute
-            $action = \Core::url()->site($action);
+            $action = \Core::url($action);
         }
 
         // Add the form action to the attributes

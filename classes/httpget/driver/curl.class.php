@@ -122,7 +122,7 @@ class Curl
     }
 
     /**
-     * 用POST方式提交
+     * 用POST方式提交，支持多个URL
      *
      * @param $url
      * @param string/array $vars
@@ -131,46 +131,17 @@ class Curl
      */
     public function post($url, $vars, $timeout = 60)
     {
-        $this->set_option( \CURLOPT_HTTPHEADER, array('Expect:'));
-
-        # 创建一个对象
-        $ch = $this->_create($url,$timeout);
-
-        # 设置为POST模式
-        \curl_setopt($ch, \CURLOPT_POST, true);
-
         if ( \is_array($vars) )
         {
             $vars = \http_build_query($vars);
         }
 
-        \curl_setopt($ch, \CURLOPT_POSTFIELDS, $vars);
+        # POST模式
+        $this->set_option( \CURLOPT_HTTPHEADER, array('Expect:') );
+        $this->set_option( \CURLOPT_POST, true );
+        $this->set_option( \CURLOPT_POSTFIELDS, $vars );
 
-        $time = \microtime(true);
-
-        $data = \curl_exec($ch);
-
-        $this->http_data = $this->get_data($data, $ch , $time);
-
-        \curl_close($ch);
-
-        # 清理设置
-        $this->clear_set();
-
-        if ( $this->http_data['code']!=200 )
-        {
-            \Core::debug()->error('POST URL:'.$url.' ERROR:' . $this->http_data['code'] );
-
-            return false;
-        }
-        else
-        {
-            \Core::debug()->error('POST URL:'.$url.' OK.');
-        }
-
-        \Core::debug()->info($vars);
-
-        return $this->http_data['data'];
+        return $this->get($url,$timeout);
     }
 
     /**
@@ -193,7 +164,7 @@ class Curl
             $urls = array($url);
         }
 
-        $data = $this->get_urls($urls, $timeout);
+        $data = $this->request_urls($urls, $timeout);
 
         $this->clear_set();
 
@@ -289,14 +260,14 @@ class Curl
     }
 
     /**
-     * 支持多线程抓取网页
+     * 支持多线程获取网页
      *
      * @see http://cn.php.net/manual/en/function.curl-multi-exec.php#88453
      * @param Array/string $urls
      * @param Int $timeout
      * @return Array
      */
-    protected function get_urls($urls, $timeout = 10)
+    protected function request_urls($urls, $timeout = 10)
     {
         if (!$urls)return array();
 
@@ -326,8 +297,10 @@ class Curl
             {
                 # 列队数控制
                 \curl_multi_add_handle($mh, $current);
-                $listener_list[$url] = array(
-                	'handle' => $current,
+
+                $listener_list[$url] = array
+                (
+                	'handle'     => $current,
                     'start_time' => \microtime(1),
                 );
             }
@@ -366,20 +339,22 @@ class Curl
 
                         if ( $this->http_data[$done_url]['code'] != 200 )
                         {
-                            \Core::debug()->error('GET URL:'.$done_url.' ERROR,TIME:' . $this->http_data[$done_url]['time'] . ',CODE:' . $this->http_data[$done_url]['code'] );
+                            \Core::debug()->error('URL:'.$done_url.' ERROR,TIME:' . $this->http_data[$done_url]['time'] . ',CODE:' . $this->http_data[$done_url]['code'] );
                             $result[$done_url] = false;
                         }
                         else
                         {
                             # 返回内容
                             $result[$done_url] = $this->http_data[$done_url]['data'];
-                            \Core::debug()->info('GET URL:'.$done_url.' OK.TIME:' . $this->http_data[$done_url]['time'] );
+                            \Core::debug()->info('URL:'.$done_url.' OK.TIME:' . $this->http_data[$done_url]['time'] );
                         }
+
+                        \curl_close($done['handle']);
+
+                        unset($listener_list[$done_url],$listener);
 
                         # Remove unnecesary handle (optional, script works without it).
                         \curl_multi_remove_handle($mh, $done['handle']);
-
-                        \curl_close($done['handle']);
 
                         if ( $multi_list )
                         {
@@ -388,7 +363,8 @@ class Curl
                             # 创建CURL对象
                             $current = $this->_create($current_url, $timeout);;
                             # 更新监听列队信息
-                            $listener_list[$current_url] = array(
+                            $listener_list[$current_url] = array
+                            (
                                 'handle' => $current,
                                 'start_time' => \microtime(1),
                             );
@@ -403,7 +379,7 @@ class Curl
                 }
             }
 
-            if ($done_num>=$list_num)break;
+            if ($done_num>=$list_num) break;
             if (!$running) break;
 
         } while (true);
@@ -421,11 +397,11 @@ class Curl
 
     protected function get_data($data, $ch , $start_time)
     {
-        $header_size = \curl_getinfo($ch, \CURLINFO_HEADER_SIZE);
-        $result['code'] = \curl_getinfo($ch, \CURLINFO_HTTP_CODE);
-        $result['data'] = \substr($data, $header_size);
+        $header_size      = \curl_getinfo($ch, \CURLINFO_HEADER_SIZE);
+        $result['code']   = \curl_getinfo($ch, \CURLINFO_HTTP_CODE);
+        $result['data']   = \substr($data, $header_size);
         $result['header'] = \explode("\r\n", \substr($data, 0, $header_size));
-        $result['time'] = \microtime(true) - $start_time;
+        $result['time']   = \microtime(true) - $start_time;
 
         return $result;
     }
@@ -436,8 +412,8 @@ class Curl
     protected function clear_set()
     {
         $this->_option = array();
-        $this->header = array();
-        $this->ip = null;
+        $this->header  = array();
+        $this->ip      = null;
         $this->cookies = null;
         $this->referer = null;
     }
