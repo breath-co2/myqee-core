@@ -280,6 +280,13 @@ final class Bootstrap
                 $include_config_file(self::$config,DIR_SYSTEM.'debug.config'.EXT);
             }
 
+            /**
+             * 是否系统内部调用模式
+             *
+             * @var boolean
+             */
+            define('IS_SYSTEM_MODE',isset($_SERVER['HTTP_X_MYQEE_SYSTEM_HASH']));
+
             # 请求模式
             $request_mode = '';
 
@@ -316,38 +323,12 @@ final class Bootstrap
                     header('Content-Type: text/html;charset='.self::$config['core']['charset']);
                 }
 
-                /**
-                 * 判断是否开启了在线调试
-                 *
-                 * @return boolean
-                 */
-                $is_online_debug = function ()
+                if (IS_SYSTEM_MODE)
                 {
-                    if (!isset($_COOKIE['_debug_open'])) return false;
-                    if (!isset(Bootstrap::$config['core']['debug_open_password'])) return false;
-                    if (!is_array(Bootstrap::$config['core']['debug_open_password']))return false;
-
-                    foreach ( Bootstrap::$config['core']['debug_open_password'] as $user=>$pass )
+                    # 系统内部请求
+                    if ( isset($_SERVER['HTTP_X_MYQEE_SYSTEM_DEBUG']) && $_SERVER['HTTP_X_MYQEE_SYSTEM_DEBUG']=='1' )
                     {
-                        if ($_COOKIE['_debug_open'] == Bootstrap::get_debug_hash($user,$pass))
-                        {
-                            return true;
-                        }
-                    }
-
-                    return false;
-                };
-
-                # DEBUG配置
-                if ( $is_online_debug() )
-                {
-                    $open_debug = true;
-                }
-                elseif ( isset( self::$config['core']['local_debug_cfg'] ) && self::$config['core']['local_debug_cfg'] )
-                {
-                    if ( function_exists( 'get_cfg_var' ) )
-                    {
-                        $open_debug = get_cfg_var( self::$config['core']['local_debug_cfg'] ) ? true : false;
+                        $open_debug = true;
                     }
                     else
                     {
@@ -356,10 +337,51 @@ final class Bootstrap
                 }
                 else
                 {
-                    $open_debug = false;
-                }
+                    /**
+                     * 判断是否开启了在线调试
+                     *
+                     * @return boolean
+                     */
+                    $is_online_debug = function ()
+                    {
+                        if (!isset($_COOKIE['_debug_open'])) return false;
+                        if (!isset(Bootstrap::$config['core']['debug_open_password'])) return false;
+                        if (!is_array(Bootstrap::$config['core']['debug_open_password']))return false;
 
-                unset($is_online_debug);
+                        foreach ( Bootstrap::$config['core']['debug_open_password'] as $user=>$pass )
+                        {
+                            if ($_COOKIE['_debug_open'] == Bootstrap::get_debug_hash($user,$pass))
+                            {
+                                return true;
+                            }
+                        }
+
+                        return false;
+                    };
+
+                    # DEBUG配置
+                    if ( $is_online_debug() )
+                    {
+                        $open_debug = true;
+                    }
+                    elseif ( isset( self::$config['core']['local_debug_cfg'] ) && self::$config['core']['local_debug_cfg'] )
+                    {
+                        if ( function_exists( 'get_cfg_var' ) )
+                        {
+                            $open_debug = get_cfg_var( self::$config['core']['local_debug_cfg'] ) ? true : false;
+                        }
+                        else
+                        {
+                            $open_debug = false;
+                        }
+                    }
+                    else
+                    {
+                        $open_debug = false;
+                    }
+
+                    unset($is_online_debug);
+                }
             }
 
             /**
@@ -387,6 +409,9 @@ final class Bootstrap
              */
             $load_library = function($arr)
             {
+                # 逆向排序
+                rsort($arr);
+
                 foreach ($arr as $library_name)
                 {
                     if (!$library_name)continue;
@@ -409,12 +434,6 @@ final class Bootstrap
              */
             define('IS_ADMIN_MODE',(!IS_CLI && $request_mode=='admin')?true:false);
 
-            /**
-             * 是否系统内部调用模式
-             *
-             * @var boolean
-             */
-            define('IS_SYSTEM_MODE',isset($_SERVER['HTTP_X_MYQEE_SYSTEM_HASH']));
 
             if (IS_SYSTEM_MODE)
             {
@@ -508,7 +527,7 @@ final class Bootstrap
         # 直接执行
         if ($auto_execute)
         {
-            if (IS_CLI)
+            if ( IS_CLI || IS_SYSTEM_MODE )
             {
                 self::execute(self::$path_info);
             }
@@ -833,7 +852,6 @@ final class Bootstrap
         }
 
         $ns = '\\library\\'.$library_name.'\\';
-
         if ( !isset(self::$include_path[$ns]) )
         {
             $dir = DIR_LIBRARY.str_replace('\\', DS, $library_name).DS;
@@ -867,10 +885,12 @@ final class Bootstrap
                 # 合并目录
                 self::$include_path = array_merge($appliction, array($ns=>$dir), self::$include_path);
 
+                if (defined('IS_DEBUG') && true===IS_DEBUG && class_exists('Core',false) && class_exists('Debug',false) )Core::debug()->info('import a new library: '.Core::debug_path($dir));
                 return true;
             }
             else
             {
+                if (defined('IS_DEBUG') && true===IS_DEBUG && class_exists('Core',false) && class_exists('Debug',false) )Core::debug()->error('the library ('.Core::debug_path($dir).') dir do not exists.');
                 return false;
             }
         }

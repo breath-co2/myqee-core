@@ -151,7 +151,6 @@ class HttpGet
      * @param $timeout
      * @return string
      * @return \HttpGet\Result 但个URL返回当然内容对象
-     * @return Arr 多个URL时将返回一个数组对象
      */
     public function get($url, $timeout = 10)
     {

@@ -83,16 +83,19 @@ class Controller
         if (\IS_SYSTEM_MODE)
         {
             # 系统内部调用模式
-
+            echo $msg;
+        }
+        elseif (isset($_SERVER["HTTP_X_PJAX"]) && $_SERVER["HTTP_X_PJAX"]=='true')
+        {
+            echo $msg;
         }
         elseif (\HttpIO::IS_AJAX)
         {
             # AJAX 模式
-
         }
         else
         {
-
+            echo $msg;
         }
 
         exit;

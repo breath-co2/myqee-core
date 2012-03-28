@@ -3,11 +3,13 @@ namespace
 {
     exit;
 
+    class App extends \Core\App{}
     class Arr extends \Core\Arr{}
     class Auth extends \Core\Auth{}
 
     class Cache extends \Core\Cache{}
     class Captcha extends \Core\Captcha{}
+    abstract class Core extends \Core\Core{}
     class Controller extends \Core\Controller{}
     class Cookie extends \Core\Cookie{}
 
@@ -32,6 +34,7 @@ namespace
     class PinYin extends \Core\PinYin{}
 
     class Session extends \Core\Session{}
+    class Storage extends \Core\Storage{}
 
     class Text extends \Core\Text{}
 

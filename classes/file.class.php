@@ -37,10 +37,10 @@ class File
      */
     public static $dir = array
     (
-        'data'    => DIR_DATA,
-        'wwwroot' => DIR_WWWROOT,
-        'log'     => DIR_LOG,
-        'temp'    => DIR_TEMP,
+        'data'    => \DIR_DATA,
+        'wwwroot' => \DIR_WWWROOT,
+        'log'     => \DIR_LOG,
+        'temp'    => \DIR_TEMP,
     );
 
     /**
@@ -329,7 +329,7 @@ class File
                 $cur_dir = "";
                 for( $i = 0; $i < \count($temp); $i ++ )
                 {
-                    $cur_dir .= $temp[$i] . "/";
+                    $cur_dir .= $temp[$i] . '/';
                     if ( !\is_dir($cur_dir) )
                     {
                         if ( @\mkdir($cur_dir, 0755) )

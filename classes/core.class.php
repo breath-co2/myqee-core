@@ -41,6 +41,13 @@ abstract class Core
     public static $project;
 
     /**
+     * 系统包含目录
+     *
+     * @var array
+     */
+    public static $include_puth = array();
+
+    /**
      * 执行Core::close_all_connect()方法时会关闭链接的类和方法名的列队，可通过Core::add_close_connect_class()方法进行设置增加
      *
      *   array(
@@ -127,6 +134,8 @@ abstract class Core
             }
 
             static::$project =& \Bootstrap::$project;
+
+            static::$include_puth =& \Bootstrap::$include_path;
 
             static::$charset = \Bootstrap::$config['core']['charset'];
 
@@ -630,8 +639,8 @@ abstract class Core
      */
     public static function url($url = null)
     {
-        list($url,$query) = explode('?', $url , 2);
-        return \Bootstrap::$base_url . ltrim($url, '/') . ($url!='' && \substr($url,-1)!='/' && false===\strpos($url,'.') && \Bootstrap::$config['core']['url_suffix']?\Bootstrap::$config['core']['url_suffix']:'') . ($query?'?'.$query:'');
+        list($url,$query) = \explode('?', $url , 2);
+        return \Bootstrap::$base_url . \ltrim($url, '/') . ($url!='' && \substr($url,-1)!='/' && false===\strpos($url,'.') && \Bootstrap::$config['core']['url_suffix']?\Bootstrap::$config['core']['url_suffix']:'') . ($query?'?'.$query:'');
     }
 
     /**
@@ -641,10 +650,13 @@ abstract class Core
      * @param string $type 类型，例如：log,error,debug 等
      * @return boolean
      */
-    public static function log($msg,$type = 'log')
+    public static function log($msg , $type = 'log')
     {
         # log配置
         $log_config = static::config('log');
+
+        # 不记录日志
+        if ( isset($log_config['use']) && !$log_config['use'] )return true;
 
         if ($log_config['file'])
         {
@@ -692,8 +704,24 @@ abstract class Core
             # 如果有开启debug模式，输出到浏览器
             static::debug()->log($data,$type);
         }
+
         # 保存日志
-        return @\file_put_contents(\DIR_LOG.$file, $data.CRLF , \FILE_APPEND)?true:false;
+        return static::write_log($file, $data, $type);
+    }
+
+    /**
+     * 写入日志
+     *
+     * 若有特殊写入需求，可以扩展本方法（比如调用数据库类克写到数据库里）
+     *
+     * @param string $file
+     * @param string $data
+     * @param string $type 日志类型
+     * @return boolean
+     */
+    protected static function write_log($file , $data , $type = 'log')
+    {
+        return @\file_put_contents(\DIR_LOG.$file, $data.\CRLF , \FILE_APPEND)?true:false;
     }
 
     /**
@@ -782,12 +810,12 @@ abstract class Core
         if ($system_exec_pass && \strlen($system_exec_pass)>=10)
         {
             # 如果有则使用系统调用密钥
-            $newhash = \sha1($body.$time.$system_exec_pass.$_SERVER["SERVER_ADDR"].':'.$_SERVER["SERVER_PORT"]);
+            $newhash = \sha1($body.$time.$system_exec_pass.$_SERVER["SERVER_ADDR"]);
         }
         else
         {
             # 没有，则用系统配置和数据库加密
-            $newhash = \sha1($body.$time.\serialize(static::config('core')).\serialize(static::config('database')).$_SERVER["SERVER_ADDR"].':'.$_SERVER["SERVER_PORT"]);
+            $newhash = \sha1($body.$time.\serialize(static::config('core')).\serialize(static::config('database')).$_SERVER["SERVER_ADDR"]);
         }
 
         if ( $newhash==$hash )

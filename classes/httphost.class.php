@@ -78,7 +78,7 @@ class HttpHost
         $param_arr = \func_get_args();
         \array_shift($param_arr);
 
-        return $this->exec($uri,current($this->hosts),$param_arr);
+        return $this->exec($uri,\current($this->hosts),$param_arr);
     }
 
     /**
@@ -109,6 +109,15 @@ class HttpHost
         static $curl_supper = null;
         if (null===$curl_supper)$curl_supper = \function_exists('\\curl_init');
 
+        # 更新URL
+        $uri = \Core::url($uri);
+        if ( false===\strpos($uri, '://') )
+        {
+            \preg_match('#^(http(?:s)?\://[^/]+/)#', $_SERVER["SCRIPT_URI"] , $m);
+            $uri = $m[1].\ltrim($uri,'/');
+        }
+
+        # 执行开始时间
         $time = \microtime(1);
         if ($curl_supper)
         {
@@ -117,13 +126,24 @@ class HttpHost
         }
         else
         {
-            #
+            if ( \preg_match('#^https://#i', $uri) )
+            {
+                # https方式目前还不可以用 socket 模式
+                throw new \Exception('system exec error.https url need use curl module.');
+            }
+
+            # 调用socket进行连接
+            $result = static::exec_by_socket($hosts,$uri,array('data'=>\serialize($param_arr)));
+        }
+        if (\IS_DEBUG)
+        {
+            \Core::debug()->log('system exec time:'.(\microtime(1)-$time));
+            \Core::debug()->log($result,'system exec result');
         }
 
         # 单条记录
-        if ($one)$result = current($result);
+        if ($one)$result = \current($result);
 
-        \Core::debug()->log('system exec time:'.(\microtime(1)-$time));
 
         return $result;
     }
@@ -131,7 +151,7 @@ class HttpHost
     /**
      * 通过CURL执行
      *
-     * @param string $hosts
+     * @param array $hosts
      * @param string $url
      * @param array $param_arr
      * @return array
@@ -140,25 +160,18 @@ class HttpHost
     {
         $mh = \curl_multi_init();
 
-        $url = \Core::url($url);
-        if ( false===\strpos($url, '://') )
-        {
-            \preg_match('#^(http(?:s)?\://[^/]+/)#', $_SERVER["SCRIPT_URI"] , $m);
-            $url = $m[1].\ltrim($url,'/');
-        }
-
         # 监听列表
         $listener_list = array();
 
         $vars = \http_build_query($param_arr);
 
         # 创建列队
-        foreach ( $hosts as $h )
+        foreach ( $hosts as $host )
         {
             # 排除重复HOST
-            if (isset($listener_list[$h]))continue;
+            if (isset($listener_list[$host]))continue;
 
-            list($host,$port) = \explode(':',$h,2);
+            list($hostname,$port) = \explode(':',$host,2);
             if (!$port)
             {
                 if (\substr($url,0,8)=='https://')
@@ -172,18 +185,18 @@ class HttpHost
             }
 
             # 一个mictime
-            $mictime = microtime(1);
+            $mictime = \microtime(1);
 
             # 生成一个HASH
-            $hash = self::get_hash($vars,$host,$port,$mictime);
+            $hash = self::get_hash($vars,$hostname,$port,$mictime);
 
             # 创建一个curl对象
-            $current = static::_create_curl($host, $port, $url, 60 , $hash ,$vars,$mictime);
+            $current = static::_create_curl($hostname, $port, $url, 60 , $hash ,$vars,$mictime);
 
             # 列队数控制
             \curl_multi_add_handle($mh, $current);
 
-            $listener_list[$h] = $current;
+            $listener_list[$host] = $current;
         }
         unset($current);
 
@@ -269,7 +282,6 @@ class HttpHost
 
         $ch = \curl_init();
         \curl_setopt($ch, \CURLOPT_URL, $url);
-        if ($port)\curl_setopt($ch, \CURLOPT_PORT, $port);
         \curl_setopt($ch, \CURLOPT_HEADER, false);
         \curl_setopt($ch, \CURLOPT_FOLLOWLOCATION, true);
         \curl_setopt($ch, \CURLOPT_RETURNTRANSFER, true);
@@ -278,16 +290,139 @@ class HttpHost
         \curl_setopt($ch, \CURLOPT_POSTFIELDS, $vars );
         \curl_setopt($ch, \CURLOPT_DNS_CACHE_TIMEOUT, 86400 );
 
-        if ( preg_match('#^https://#i', $url) )
+        if ( \preg_match('#^https://#i', $url) )
         {
+            if (!$port)$port = 443;
             \curl_setopt($ch, \CURLOPT_SSL_VERIFYHOST, false);
             \curl_setopt($ch, \CURLOPT_SSL_VERIFYPEER, false);
         }
+        else
+        {
+            if (!$port)$port = 80;
+        }
 
+        \curl_setopt($ch, CURLOPT_PORT, $port);
         \curl_setopt($ch, \CURLOPT_USERAGENT, 'MyQEE System Call');
-        \curl_setopt($ch, \CURLOPT_HTTPHEADER, array('Expect:','Host: '.$m[2],'X-Myqee-System-Hash: '.$hash,'X-Myqee-System-Time: '.$mictime));
+        \curl_setopt($ch, \CURLOPT_HTTPHEADER, array('Host: '.$m[2],'X-Myqee-System-Hash: '.$hash,'X-Myqee-System-Time: '.$mictime,'X-Myqee-System-Debug: '.(\IS_DEBUG?1:0)));
 
         return $ch;
+    }
+
+    /**
+     * 通过Socket执行
+     *
+     * @param array $hosts
+     * @param string $url
+     * @param array $param_arr
+     * @return array
+     */
+    protected static function exec_by_socket($hosts,$url,array $param_arr = null)
+    {
+        $vars = \http_build_query($param_arr);
+
+        if (\preg_match('#^(http(?:s)?)\://([^/\:]+)(\:[0-9]+)?/(.*)$#', $url,$m))
+        {
+            $uri = '/'.\ltrim($m[4],'/');    //获取到URI部分
+            $h = $m[2];                      //获取到HOST
+        }
+
+        $fs = $errno = $errstr = $rs = array();
+
+        foreach ($hosts as $host)
+        {
+            list($hostname,$port) = \explode(':',$host,2);
+            if (!$port)
+            {
+                if (\substr($url,0,8)=='https://')
+                {
+                    $port = 443;
+                }
+                else
+                {
+                    $port = 80;
+                }
+            }
+
+            # 一个mictime
+            $mictime = \microtime(1);
+
+            # 生成一个HASH
+            $hash = self::get_hash($vars,$hostname,$port,$mictime);
+
+            # 使用HTTP协议请求数据
+            $str = 'POST ' . $uri . ' HTTP/1.0' . \CRLF
+            . 'Host: ' . $h . \CRLF
+            . 'User-Agent: MyQEE System Call' . \CRLF
+            . 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' . \CRLF
+            . 'Connection: close' . \CRLF
+            . 'X-Myqee-System-Hash: ' . $hash . \CRLF
+            . 'X-Myqee-System-Time: ' . $mictime . \CRLF
+            . 'X-Myqee-System-Debug: ' . (\IS_DEBUG?1:0) . \CRLF
+            . 'Content-Length: ' . \strlen($vars) . \CRLF
+            . 'Content-Type: application/x-www-form-urlencoded' . \CRLF
+            . \CRLF . $vars;
+
+            for( $i=0 ;$i<3 ;$i++ )
+            {
+                if (isset($fs[$host]))break;
+                # 尝试连接服务器
+                $ns = \fsockopen($hostname,$port,$errno[$host],$errstr[$host],1);
+                if ($ns)
+                {
+                    $fs[$host] = $ns;
+                    break;
+                }
+                elseif ($i==2)
+                {
+                    $rs[$host] = false;
+                }
+                else
+                {
+                    \usleep(2000);    //等待2毫秒
+                }
+            }
+            unset($ns);
+
+            if ($fs[$host])
+            {
+                for($i=0;$i<3;$i++)
+                {
+                    # 写入HTTP协议内容
+                    if ( \strlen($str) === \fwrite($fs[$host],$str) )
+                    {
+                        # 成功
+                        break;
+                    }
+                    elseif ($i==2)
+                    {
+                        # 写入失败，将此移除
+                        unset($fs[$host]);
+                        $rs[$host] = false;
+                        break;
+                    }
+                    else
+                    {
+                        \usleep(2000);    //等待2毫秒
+                    }
+                }
+            }
+        }
+
+        foreach ($fs as $host=>$f)
+        {
+            $str = '';
+            while (!\feof($f))
+            {
+                $str .= \fgets($f);
+            }
+            \fclose($f);
+
+            list($header,$body) = \explode("\r\n\r\n",$str,2);
+
+            $rs[$host] = $body;
+        }
+
+        return $rs;
     }
 
     /**
@@ -306,12 +441,12 @@ class HttpHost
         if ($system_exec_pass)
         {
             # 如果有则使用系统调用密钥
-            $hash = \sha1($vars.$mictime.$system_exec_pass.$host.':'.$port);
+            $hash = \sha1($vars.$mictime.$system_exec_pass.$host);
         }
         else
         {
             # 没有，则用系统配置和数据库加密
-            $hash = \sha1($vars.$mictime.serialize(\Core::config('core')).\serialize(\Core::config('database')).$host.':'.$port);
+            $hash = \sha1($vars.$mictime.serialize(\Core::config('core')).\serialize(\Core::config('database')).$host);
         }
 
         return $hash;
