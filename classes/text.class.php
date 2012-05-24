@@ -16,7 +16,8 @@ class Text
     /**
      * @var  array   number units and text equivalents
      */
-    public static $units = array(
+    public static $units = array
+    (
         1000000000 => 'billion',
         1000000 => 'million',
         1000 => 'thousand',

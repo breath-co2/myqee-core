@@ -1,5 +1,5 @@
 <?php
-namespace Core\OOP;
+namespace Core;
 
 /**
  * ORM核心类
@@ -11,7 +11,7 @@ namespace Core\OOP;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-abstract class ORM
+abstract class OOP_ORM
 {
 
     /**
@@ -94,7 +94,7 @@ abstract class ORM
                 {
                     $classname = (string)$tmpobj;
                 }
-                if ( \preg_match('#^ORM\\\\([a-z0-9\\\\_]+)_Finder$#i', $classname, $m) )
+                if ( \preg_match('#^ORM_([a-z0-9_]+)_Finder$#i', $classname, $m) )
                 {
                     $this->_orm_name = $m[1];
                     break;
@@ -128,7 +128,7 @@ abstract class ORM
             return $this->_orm_name_result;
         }
 
-        return '\\ORM\\' . $this->_orm_name . '_' . \ucfirst($type);
+        return '\\ORM_' . $this->_orm_name . '_' . \ucfirst($type);
     }
 
     /**
@@ -182,7 +182,7 @@ abstract class ORM
                 \Core::debug()->info('指定的' . $result_name . '对象不存在。');
                 $no_result[$result_name] = true;
             }
-            $result_name = '\\OOP\\ORM\\Result';
+            $result_name = '\\OOP_ORM_Result';
         }
         return new $result_name($data);
     }

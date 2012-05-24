@@ -1,5 +1,5 @@
 <?php
-namespace Core\OOP\ORM;
+namespace Core;
 
 /**
  * ORM 字段解析器类
@@ -11,12 +11,12 @@ namespace Core\OOP\ORM;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-abstract class Parse
+abstract class OOP_ORM_Parse
 {
 
     public function __construct()
     {
-        throw new \Exception('\\OOP\\ORM\\Parse 对象不需实例化');
+        throw new \Exception('\\OOP_ORM_Parse 对象不需实例化');
     }
 
     /**
@@ -251,7 +251,7 @@ abstract class Parse
             {
                 if ( \is_array($v) )
                 {
-                    $fun = 'static::_format_action_' . \array_shift($v);
+                    $fun = '\\OOP_ORM_Parse::_format_action_' . \array_shift($v);
                     \array_unshift($v,$data);
                     $data = \call_user_func_array($fun, $v);
                 }
@@ -284,7 +284,7 @@ abstract class Parse
             {
                 if ( \is_array($v) )
                 {
-                    $fun = 'static::_de_format_action_' . \array_shift($v);
+                    $fun = 'OOP_ORM_Parse::_de_format_action_' . \array_shift($v);
                     \array_unshift($v,$data);
                     $data = \call_user_func_array($fun, $v);
                 }
@@ -576,7 +576,7 @@ abstract class Parse
         {
             $data = $obj->$callback_fun();
         }
-        elseif ( $obj instanceof \OOP\ORM\Data )
+        elseif ( $obj instanceof \OOP_ORM_Data )
         {
             $data = $obj->get_field_data();
         }
@@ -584,7 +584,7 @@ abstract class Parse
         {
             $data = (array)$obj;
         }
-        elseif ( $obj instanceof \OOP\ORM )
+        elseif ( $obj instanceof \OOP_ORM )
         {
             # OOP_ORM对象无法作用于实际数据
             return false;
@@ -623,12 +623,12 @@ abstract class Parse
     /**
      * 根据字段ORM配置获取ORM数据
      *
-     * @param \OOP\ORM\Data $data_obj
+     * @param \OOP_ORM_Data $data_obj
      * @param array $orm_config
      * @throws \Exception
      * @return mixed
      */
-    public static function get_orm_data_by_config(\OOP\ORM\Data $data_obj, $orm_config, $index)
+    public static function get_orm_data_by_config(\OOP_ORM_Data $data_obj, $orm_config, $index)
     {
         if ( isset( $orm_config['cache'] ) )
         {
@@ -640,7 +640,7 @@ abstract class Parse
             }
             $data = static::get_orm_cache_data($data_obj , $index , $c_config);
 
-            $orm_name = '\\ORM\\' . $orm_config['name'] . '_Data';
+            $orm_name = '\\ORM_' . $orm_config['name'] . '_Data';
             if ( $data && \is_object($data) && $data instanceof $orm_name )
             {
                 return $data;
@@ -655,7 +655,7 @@ abstract class Parse
         }
 
         # 映射ORM对象
-        $obj_name = '\\ORM\\' . $orm_config['name'] . '_Finder';
+        $obj_name = '\\ORM_' . $orm_config['name'] . '_Finder';
         if ( !\class_exists($obj_name, true) )
         {
             throw new \Exception('指定的ORM:' . $orm_config['name'] . '不存在！');
@@ -703,7 +703,7 @@ abstract class Parse
         }
 
         # 获取ORM单条数据
-        if ( $can_try_get_gourps_data && $orm_config['return'] == \OOP\ORM::PARAM_RETURN_SINGLE )
+        if ( $can_try_get_gourps_data && $orm_config['return'] == \OOP_ORM::PARAM_RETURN_SINGLE )
         {
             # 对于单条数据，可以尝试批量获取，以优化SQL性能
             $data = static::_get_orm_group_data($obj, $data_obj, $orm_config , $index);
@@ -739,12 +739,12 @@ abstract class Parse
             $obj->limit($orm_config['limit']);
         }
 
-        if ( $orm_config['return'] == \OOP\ORM::PARAM_RETURN_SINGLE )
+        if ( $orm_config['return'] == \OOP_ORM::PARAM_RETURN_SINGLE )
         {
             # 获取单条数据
             $data = $obj->find()->current();
         }
-        elseif ( $orm_config['return'] == \OOP\ORM::PARAM_RETURN_GROUP )
+        elseif ( $orm_config['return'] == \OOP_ORM::PARAM_RETURN_GROUP )
         {
             # 获取一组数据
             $data = $data = $obj->find();
@@ -764,7 +764,7 @@ abstract class Parse
         return $data;
     }
 
-    protected static function _get_orm_group_data(\OOP\ORM $obj, \OOP\ORM\Data $data_obj, $orm_config , $index)
+    protected static function _get_orm_group_data(\OOP_ORM $obj, \OOP_ORM_Data $data_obj, $orm_config , $index)
     {
         $group_data = $data_obj->get_group_data();
         if ( $group_data )
@@ -861,7 +861,7 @@ abstract class Parse
      * @param array $config
      * @return fiexd
      */
-    public static function get_offset_cache_data( \OOP\ORM\Data $data_obj , $index , $cache_config )
+    public static function get_offset_cache_data( \OOP_ORM_Data $data_obj , $index , $cache_config )
     {
         # 获取一个key
         $key = static::get_offset_cache_key($data_obj , $index);
@@ -879,7 +879,7 @@ abstract class Parse
      *
      * @return boolean
      */
-    public static function set_offset_cache_data( \OOP\ORM\Data $data_obj , $index , $cache_config , $data )
+    public static function set_offset_cache_data( \OOP_ORM_Data $data_obj , $index , $cache_config , $data )
     {
         # 获取一个key
         $key = static::get_offset_cache_key($data_obj, $index);
@@ -894,7 +894,7 @@ abstract class Parse
      * @param array $config
      * @return fiexd
      */
-    public static function delete_offset_cache_data( \OOP\ORM\Data $data_obj , $index , $cache_config )
+    public static function delete_offset_cache_data( \OOP_ORM_Data $data_obj , $index , $cache_config )
     {
         # 获取一个key
         $key = static::get_offset_cache_key($data_obj , $index);
@@ -908,7 +908,7 @@ abstract class Parse
      * @param string $index
      * @return string
      */
-    public static function get_offset_cache_key( \OOP\ORM\Data $data_obj , $index )
+    public static function get_offset_cache_key( \OOP_ORM_Data $data_obj , $index )
     {
         $id_field_name = $data_obj->id_field_name();
         $id_value = $data_obj->$id_field_name;
@@ -923,7 +923,7 @@ abstract class Parse
      * @param array $config
      * @return fiexd
      */
-    public static function get_orm_cache_data( \OOP\ORM\Data $data_obj , $index , $config )
+    public static function get_orm_cache_data( \OOP_ORM_Data $data_obj , $index , $config )
     {
         # 获取一个key
         $key = static::get_orm_cache_key($data_obj , $index , $config);
@@ -941,7 +941,7 @@ abstract class Parse
      *
      * @return boolean
      */
-    public static function set_orm_cache_data( \OOP\ORM\Data $data_obj , $index , $config , $data )
+    public static function set_orm_cache_data( \OOP_ORM_Data $data_obj , $index , $config , $data )
     {
         # 获取一个key
         $key = static::get_orm_cache_key($data_obj , $index , $config);
@@ -956,7 +956,7 @@ abstract class Parse
      * @param array $config
      * @return fiexd
      */
-    public static function delete_orm_cache_data( \OOP\ORM\Data $data_obj ,$index , $config )
+    public static function delete_orm_cache_data( \OOP_ORM_Data $data_obj ,$index , $config )
     {
         # 获取一个key
         $key = static::get_orm_cache_key($data_obj ,$index , $config);
@@ -970,7 +970,7 @@ abstract class Parse
      * @param string $index
      * @return string
      */
-    public static function get_orm_cache_key( \OOP\ORM\Data $data_obj , $index , $config )
+    public static function get_orm_cache_key( \OOP_ORM_Data $data_obj , $index , $config )
     {
         return '_ORM_CACHE_' . \str_replace('\\','__',\get_class($data_obj)) . '_' . $index .'_'. \md5(\serialize($config));
     }

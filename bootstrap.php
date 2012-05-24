@@ -32,7 +32,7 @@ define('DS', DIRECTORY_SEPARATOR);
  *
  * @var string
  */
-define('DIR_SYSTEM', realpath(dirname(__FILE__).'/../').DS);
+define('DIR_SYSTEM', realpath(__DIR__.DS.'..'.DS).DS);
 
 /**
  * Application目录
@@ -240,7 +240,7 @@ final class Bootstrap
      */
     private static $dir_setting = array
     (
-        'classes'    => array('classes'     , '.class'),
+        'class'      => array('classes'     , '.class'),
         'controller' => array('controllers' , '.controller'),
         'model'      => array('models'      , '.model'),
         'orm'        => array('orm'         , '.orm'),
@@ -272,10 +272,12 @@ final class Bootstrap
             {
                 include $file;
             };
+
+            # 读取主配置
             $include_config_file(self::$config,DIR_SYSTEM.'config'.EXT);
 
-            # debug config
-            if (isset($config['core']['debug_config']) && self::$config['core']['debug_config'] && is_file(self::$config,DIR_SYSTEM.'debug.config'.EXT))
+            # 读取DEBUG配置
+            if ( isset($config['core']['debug_config']) && self::$config['core']['debug_config'] && is_file(self::$config,DIR_SYSTEM.'debug.config'.EXT) )
             {
                 $include_config_file(self::$config,DIR_SYSTEM.'debug.config'.EXT);
             }
@@ -534,7 +536,28 @@ final class Bootstrap
             else
             {
                 ob_start();
-                self::execute(self::$path_info);
+
+                try
+                {
+                    self::execute(self::$path_info);
+                }
+                catch (Exception $e)
+                {
+                    $code = $e->getCode();
+                    if ( 404===$code || E_PAGE_NOT_FOUND===$code )
+                    {
+                        Core::show_404($e->getMessage());
+                    }
+                    elseif (500===$code)
+                    {
+                        Core::show_500($e->getMessage());
+                    }
+                    else
+                    {
+                        Core::show_500($e->getMessage(),$code);
+                    }
+                }
+
                 HttpIO::$body = ob_get_clean();
             }
 
@@ -556,12 +579,24 @@ final class Bootstrap
         {
             require $found['file'];
 
-            $class_name = $found['namespace'].'Controller\\'.$found['class'];
+            $class_name = $found['namespace'].$found['class'];
 
             if (class_exists($class_name,false))
             {
 
                 $controller = new $class_name();
+
+                Controller::$controllers[] = $controller;
+
+                $rm_controoler = function () use ($controller)
+                {
+                    foreach (Controller::$controllers as $k=>$c)
+                    {
+                        if ($c===$controller)unset(Controller::$controllers[$k]);
+                    }
+
+                    Controller::$controllers = array_values(Controller::$controllers);
+                };
 
                 $arguments = $found['args'];
                 if ($arguments)
@@ -588,11 +623,15 @@ final class Bootstrap
                     elseif (method_exists($controller,'__call'))
                     {
                         $controller->__call($action_name,$arguments);
+
+                        $rm_controoler();
                         return;
                     }
                     else
                     {
-                        Core::show_404();
+                        $rm_controoler();
+
+                        throw new Exception(__('Page Not Found'),404);
                     }
                 }
                 else
@@ -603,7 +642,9 @@ final class Bootstrap
                 $ispublicmethod = new ReflectionMethod($controller,$action_name);
                 if (!$ispublicmethod->isPublic())
                 {
-                    Core::show_500('Request Method Not Allowed.',405);
+                    $rm_controoler();
+
+                    throw new Exception(__('Request Method Not Allowed.'),405);
                 }
                 unset($ispublicmethod);
 
@@ -658,21 +699,23 @@ final class Bootstrap
                     $controller->after();
                 }
 
+                # 移除控制器
+                $rm_controoler();
             }
             else
             {
-                Core::show_404();
+                throw new Exception(__('Page Not Found'),404);
             }
         }
         else
         {
-            Core::show_404();
+            throw new Exception(__('Page Not Found'),404);
         }
     }
 
 
     /**
-     * 自动加载
+     * 自动加载类
      *
      * @param string $class_name
      * @return boolean
@@ -684,53 +727,51 @@ final class Bootstrap
         # 移除两边的\
         $class_name = strtolower(trim($class_name,'\\'));
 
-        # 用\分割
-        $class_arr = explode('\\', $class_name);
-        $old_class_arr = $class_arr;
-
-        # 主命名空间
-        $top_name_space = '';
-        # 子命名空间
-        $sub_name_space = '';
-        # class的类型
-        $class_dir = 'classes';
-        # 含\的个数
-
-        if (count($class_arr)>1)
+        # 通过正则匹配出相关参数
+        if (preg_match('#^(?:(core|library|project)\\\\(?:([0-9a-z_]+)\\\\([0-9a-z_]+)\\\\)?(?:(orm|controller|model)_)?)?([0-9a-z_]+)$#', $class_name,$m))
         {
-            switch ($class_arr[0])
+            # 主命名空间，包括 core,library,project
+            $lib_type = $m[1];
+
+            # 子命名空间，例如 MyQEE\Test\
+            $sub_name_space = '';
+            if ($m[2] && $m[3])
             {
-                case 'core':
-                    # 例如 Core\Database
-                    $top_name_space = array_shift($class_arr);
-                    break;
-                case 'library':
-                case 'project':
-                    if (count($class_arr)<4)
-                    {
-                        # 扩展类库和APP必须是4位及以上，比如 Library\MyQEE\CMS\Test
-                        return false;
-                    }
-                    $top_name_space = array_shift($class_arr);
-                    $sub_name_space = array_shift($class_arr).DS;
-                    $sub_name_space.= array_shift($class_arr).DS;
-                    break;
-                default;
-                    break;
+                $sub_name_space = $m[2].'\\'.$m[3].'\\';
             }
 
-            if ( count($class_arr)>1 && in_array($class_arr[0],array('controller','shell','model','orm',)) )
+            $class_prefix = 'class';
+            if ($m[4])
             {
-                $class_dir = array_shift($class_arr);
+                # 前缀，目前包括orm,controller,model,其它均被视为类库
+                $class_prefix = $m[4];
+            }
 
-                if ($class_dir==='orm')
-                {
-                    $class_arr[count($class_arr)-1]  = @preg_replace('#^(.*)_[a-z0-9]+$#i', '$1', $class_arr[count($class_arr)-1] );
-                }
+            # 命名空间内的类名称
+            $the_classname = $real_name = $m[5];
+            if ($class_prefix=='orm')
+            {
+                # ORM需要处理下，去掉后缀
+                $real_name = @preg_replace('#^(.*)_(data|finder|index|result)$#', '$1',$real_name);
+            }
+
+            if ( $class_prefix=='controller' )
+            {
+                # 控制器是2个下划线代表一个文件夹
+                $filename = str_replace('__', DS, $real_name);
+            }
+            else
+            {
+                $filename = str_replace('_', DS, $real_name);
             }
         }
+        else
+        {
+            # 不在既定的命名规则之内
+            return false;
+        }
 
-        static $dir_array = array
+        static $lib_dir_array = array
         (
             ''        => DIR_APPLICATION,
             'library' => DIR_LIBRARY,
@@ -745,37 +786,46 @@ final class Bootstrap
          Library\MyQEE\CMS\Test    DIR_LIBRARY/myqee/cms/classes/test.class.php
          Core\Test\t               DIR_CORE/classes/test/t.class.php
         */
-        # 拼接出完整的URL
-        $file = $sub_name_space.self::$dir_setting[$class_dir][0].DS.implode(DS, $class_arr).self::$dir_setting[$class_dir][1].EXT;
+        # 拼接出完整的文件路径
+        $file = str_replace('\\',DS,$sub_name_space).self::$dir_setting[$class_prefix][0].DS.$filename.self::$dir_setting[$class_prefix][1].EXT;
 
-        if (is_file($dir_array[$top_name_space].$file))
+        if (is_file($lib_dir_array[$lib_type].$file))
         {
-            require $dir_array[$top_name_space].$file;
+            # 指定文件存在
+            require $lib_dir_array[$lib_type].$file;
         }
-        elseif ($top_name_space==='')
+        elseif ($lib_type==='')
         {
             # 没有找到文件且为项目类库，尝试在某个命名空间的类库中寻找
             foreach (self::$include_path as $ns=>$path)
             {
                 if ($ns=='\\')continue;
 
-                $ns_class_name = $ns.$class_name;
+                $ns_class_name = $ns.$the_classname;
 
                 if (self::auto_load($ns_class_name))
                 {
-                    if (!class_exists($class_name,false))
+                    if (class_exists($class_name,false))
                     {
-                        $abstract = '';
+                        # 在加载$ns_class_name时，当前需要的类库有可能被加载了，直接返回true
+                        return true;
+                    }
+                    else
+                    {
                         $rf = new ReflectionClass($ns_class_name);
                         if ( $rf->isAbstract() )
                         {
                             $abstract = 'abstract ';
                         }
+                        else
+                        {
+                            $abstract = '';
+                        }
                         unset($rf);
 
-                        $class_str = array_pop($old_class_arr);
-                        $str = 'namespace '.implode('\\', $old_class_arr).'{'.$abstract.'class '.$class_str.' extends '.$ns_class_name.'{}}';
+                        $str = 'namespace '.trim($lib_type.'\\'.$sub_name_space,'\\').'{'.$abstract.'class '.$the_classname.' extends '.$ns_class_name.'{}}';
 
+                        # 动态执行
                         eval($str);
                     }
 
@@ -954,82 +1004,6 @@ final class Bootstrap
         # 控制器目录
         $controller_dir = 'controllers';
 
-        /**
-         * PHP 保留关键字
-         *
-         * @var array
-         */
-        $reserved_keywords = array(
-            'and',
-            'or',
-            'xor',
-            '__file__',
-            'exception',
-            '__line__',
-            'array',
-            'as',
-            'break',
-            'case',
-            'class',
-            'const',
-            'continue',
-            'declare',
-            'default',
-            'die',
-            'do',
-            'echo',
-            'else',
-            'elseif',
-            'empty',
-            'enddeclare',
-            'endfor',
-            'endforeach',
-            'endif',
-            'endswitch',
-            'endwhile',
-            'eval',
-            'exit',
-            'extends',
-            'for',
-            'foreach',
-            'function',
-            'global',
-            'if',
-            'include',
-            'include_once',
-            'isset',
-            'list',
-            'new',
-            'print',
-            'require',
-            'require_once',
-            'return',
-            'static',
-            'switch',
-            'unset',
-            'use',
-            'var',
-            'while',
-            '__function__',
-            '__class__',
-            '__method__',
-            'final',
-            'php_user_filter',
-            'interface',
-            'implements',
-            'extends',
-            'public',
-            'private',
-            'protected',
-            'abstract',
-            'clone',
-            'try',
-            'catch',
-            'throw',
-            'cfunction',
-            'this',
-        );
-
         # 首先找到存在的目录
         $found_path = array();
         foreach ( $include_path as $ns => $path )
@@ -1059,22 +1033,13 @@ final class Bootstrap
                     $real_uri_path = $uri_path;
                 }
 
-                if (in_array($real_uri_path, $reserved_keywords))
-                {
-                    $real_uri_class = '_' . $real_uri_path;
-                }
-                else
-                {
-                    $real_uri_class = $real_uri_path;
-                }
-
                 $tmpdir = $tmp_path . $real_path . $real_uri_path . DS;
                 if (IS_DEBUG)
                 {
                     $find_path_log[] = Core::debug_path($tmpdir);
                 }
                 $real_path .= $real_uri_path . DS;
-                $real_class .= $real_uri_class . DS;
+                $real_class .= $real_uri_path . '__';
                 $tmp_str .= $uri_path . DS;
 
                 if (is_dir($tmpdir))
@@ -1082,7 +1047,7 @@ final class Bootstrap
                     $found_path[$tmp_str][] = array(
                         $ns,
                         $tmpdir,
-                        $real_class,
+                        ltrim($real_class,'_'),
                         $ids
                     );
                 }
@@ -1133,20 +1098,12 @@ final class Bootstrap
                     continue;
                 }
 
-                # 检查是否PHP保留关键字
-                if (in_array($tmp_class, $reserved_keywords))
-                {
-                    $real_class = '_' . $tmp_class;
-                }
-                else
-                {
-                    $real_class = $tmp_class;
-                }
+                $real_class = $tmp_class;
 
                 foreach ( $all_path as $tmp_arr )
                 {
                     list($ns, $tmp_path, $real_path, $ids) = $tmp_arr;
-                    $path_str = str_replace('/', '\\', ltrim($real_path, '/'));
+                    $path_str = $real_path;
                     $tmpfile = $tmp_path . $tmp_class . self::$dir_setting['controller'][1] . EXT;
                     if (IS_DEBUG)
                     {
@@ -1163,7 +1120,7 @@ final class Bootstrap
                         (
                             'file'      => $tmpfile,
                             'namespace' => $ns,
-                            'class'     => $path_str . $real_class,
+                            'class'     => 'Controller_' . $path_str . $real_class,
                             'args'      => $args,
                             'ids'       => $ids,
                         );

@@ -121,9 +121,7 @@ class Cache
             $this->config['prefix'] = '';
         }
 
-        if (\strtolower($this->config['driver'])=='default')$this->config['driver'] = 'Default_Driver';
-
-        $driver = '\\Cache\\Driver\\' . $this->config['driver'];
+        $driver = '\\Cache_Driver_' . $this->config['driver'];
         if (!\class_exists($driver,true))
         {
             throw new \Exception('指定的缓存驱动' . $driver . '不存在！');
@@ -523,7 +521,7 @@ class Cache
      * 设置为session模式后，在开启debug情况下访问无缓存状态将不受影响
      *
      * @param boolean $open
-     * @return Cache
+     * @return \Cache
      */
     public function session_mode($open)
     {

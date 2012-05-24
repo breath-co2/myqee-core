@@ -42,9 +42,27 @@ class Controller
      */
     public $ids = array();
 
+    /**
+     * 控制器实例化化对象
+     *
+     * @var array
+     */
+    public static $controllers = array();
+
     public function __construct()
     {
 
+    }
+
+    /**
+     * 返回当前控制器
+     *
+     * @return \Controller
+     */
+    public static function current_controller()
+    {
+        \end(static::$controllers);
+        return \current(static::$controllers);
     }
 
     /**
@@ -56,7 +74,7 @@ class Controller
      */
     protected static function show_error( $msg = 'error' )
     {
-        static::show_message($msg , null , -1 );
+        static::show_message($msg , -1);
     }
 
     /**
@@ -68,7 +86,7 @@ class Controller
      */
     protected static function show_success( $msg = 'success' , $data = array() )
     {
-        static::show_message( $msg , $data , 1 );
+        static::show_message( $msg , 1 , $data );
     }
 
     /**
@@ -78,7 +96,7 @@ class Controller
      * @param array $data
      * @param int $code
      */
-    protected static function show_message( $msg , $data = array() , $code=0 )
+    protected static function show_message( $msg , $code=0 , $data = array() )
     {
         if (\IS_SYSTEM_MODE)
         {
@@ -92,12 +110,30 @@ class Controller
         elseif (\HttpIO::IS_AJAX)
         {
             # AJAX 模式
+            $value = array
+            (
+                'msg'  => $msg,
+                'code' => $code,
+                'data' => $data,
+            );
+            echo \json_encode($value);
         }
         else
         {
+            # 输出消息
             echo $msg;
+
+            # 获取当前实例化控制器对象
+            $controller = static::current_controller();
+
+            # 后置方法
+            if ( \method_exists($controller,'after') )
+            {
+                $controller->after();
+            }
         }
 
+        # 页面强制结束
         exit;
     }
 

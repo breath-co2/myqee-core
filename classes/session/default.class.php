@@ -1,5 +1,5 @@
 <?php
-namespace Core\Session;
+namespace Core;
 
 /**
  * Session默认驱动器核心类
@@ -11,7 +11,7 @@ namespace Core\Session;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class Default_Driver
+class Session_Default
 {
 
     public function __construct()

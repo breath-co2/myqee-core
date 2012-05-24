@@ -1,5 +1,5 @@
 <?php
-namespace Core\Database;
+namespace Core;
 
 /**
  * 数据库驱动核心类
@@ -11,7 +11,7 @@ namespace Core\Database;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-abstract class Driver
+abstract class Database_Driver
 {
     /**
      * 当前连接类型 master|slaver
@@ -30,9 +30,10 @@ abstract class Driver
      *
      * @var array
      */
-    protected $_connection_ids = array(
-            'master' => null,
-            'slaver' => null,
+    protected $_connection_ids = array
+    (
+        'master' => null,
+        'slaver' => null,
     );
 
     /**
@@ -169,14 +170,14 @@ abstract class Driver
     /**
      * 获取事务对象
      *
-     * @return \Database\Transaction
+     * @return \Database_Transaction
      */
     public function transaction()
     {
-        $tr_name = 'Database_Driver_'.$this->config['type'].'_Transaction';
+        $tr_name = '\\Database_Driver_'.$this->config['type'].'_Transaction';
         if ( !\class_exists($tr_name,true) )
         {
-            throw new \Exception(__('the transaction of :driver not exist.',array(':driver'=>$this->config['type'])));
+            throw new \Exception(\__('the transaction of :driver not exist.',array(':driver'=>$this->config['type'])));
         }
         return new $tr_name($this);
     }
@@ -194,19 +195,53 @@ abstract class Driver
     /**
      * 获取一个随机HOST
      *
-     * @param boolean $use_master
+     * @param array $exclude_hosts 排除的HOST
+     * @param string $type 配置类型
      */
-    protected function _get_rand_host()
+    protected function _get_rand_host($exclude_hosts = array() , $type = null)
     {
+        if (!$type)$type = $this->_connection_type;
         $hostname = $this->config['connection']['hostname'];
-        if (!\is_array($hostname))return $hostname;
 
-        $hostconfig = $hostname[$this->_connection_type];
+        if (!\is_array($hostname))
+        {
+            if ( \in_array($hostname, $exclude_hosts) )
+            {
+                return false;
+            }
+
+            if ($exclude_hosts && $type!='master' && \in_array($hostname, $exclude_hosts))
+            {
+                # 如果相应的slave都已不可获取，则改由获取master
+                return $this->_get_rand_host($exclude_hosts,'master');
+            }
+
+            return $hostname;
+        }
+
+        $hostconfig = $hostname[$type];
 
         if (\is_array($hostconfig))
         {
+            if ($exclude_hosts)
+            {
+                $hostconfig = \array_diff($hostconfig,$exclude_hosts);
+            }
+
             $hostconfig = \array_values($hostconfig);
             $count = \count($hostconfig);
+            if ($count==0)
+            {
+                if ( $type!='master' )
+                {
+                    return $this->_get_rand_host($exclude_hosts,'master');
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
             # 获取一个随机链接
             $rand_id = \mt_rand(0, $count - 1);
 
@@ -214,6 +249,11 @@ abstract class Driver
         }
         else
         {
+            if ( \in_array($hostconfig, $exclude_hosts) )
+            {
+                return false;
+            }
+
             return $hostconfig;
         }
     }
@@ -230,7 +270,8 @@ abstract class Driver
     {
         $hash = \sha1(\get_class($this) . '_' . $hostname . '_' . $port . '_' . $username);
 
-        static::$_hash_to_hostname[$hash] = array(
+        static::$_hash_to_hostname[$hash] = array
+        (
             'hostname' => $hostname,
             'port'     => $port,
             'username' => $username

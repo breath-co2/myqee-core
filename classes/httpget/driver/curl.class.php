@@ -1,5 +1,5 @@
 <?php
-namespace Core\HttpGet\Driver;
+namespace Core;
 
 /**
  * Http请求Curl驱动核心类
@@ -11,7 +11,7 @@ namespace Core\HttpGet\Driver;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class Curl
+class HttpGet_Driver_Curl
 {
 
     protected $http_data = array();

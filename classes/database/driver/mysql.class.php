@@ -1,5 +1,5 @@
 <?php
-namespace Core\Database\Driver;
+namespace Core;
 
 /**
  * 数据库MySQL驱动核心类
@@ -11,7 +11,7 @@ namespace Core\Database\Driver;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class MySQL extends \Database\Driver
+class Database_Driver_MySQL extends \Database_Driver
 {
 
     /**
@@ -155,42 +155,52 @@ class MySQL extends \Database\Driver
 
         }
 
-        $try_num = 5;
-        for( $i=1;$i<=$try_num;$i++ )
+        # 错误服务器
+        static $error_host = array();
+
+        while (true)
         {
-            $hostname = $this->_get_rand_host();
+            $hostname = $this->_get_rand_host($error_host);
+            if (false===$hostname)throw new \Exception('数据库链接失败');
+
             $_connection_id = $this->_get_connection_hash($hostname, $port, $username);
             static::$_current_connection_id_to_hostname[$_connection_id] = $hostname.':'.$port;
 
-            # 尝试重连
-            try
+            for ($i=1; $i<=2; $i++)
             {
-                $time = \microtime(true);
-
-                if ( empty($persistent) )
+                # 尝试重连
+                try
                 {
-                    $tmplink = \mysql_connect($hostname . ($port && $port != 3306 ? ':' . $port : ''), $username, $password, true);
+                    $time = \microtime(true);
+
+                    if ( empty($persistent) )
+                    {
+                        $tmplink = \mysql_connect($hostname . ($port && $port != 3306 ? ':' . $port : ''), $username, $password, true);
+                    }
+                    else
+                    {
+                        $tmplink = \mysql_pconnect($hostname . ($port && $port != 3306 ? ':' . $port : ''), $username, $password);
+                    }
+
+                    \Core::debug()->info(' mysql '.$hostname.' connection time:' . (\microtime(true) - $time));
+
+                    # 连接ID
+                    $this->_connection_ids[$this->_connection_type] = $_connection_id;
+                    static::$_connection_instance[$_connection_id] = $tmplink;
+
+                    unset($tmplink);
+
+                    break 2;
                 }
-                else
+                catch ( \Exception $e )
                 {
-                    $tmplink = \mysql_pconnect($hostname . ($port && $port != 3306 ? ':' . $port : ''), $username, $password);
-                }
+                    if (2==$i && !\in_array($hostname, $error_host))
+                    {
+                        $error_host[] = $hostname;
+                    }
 
-                \Core::debug()->info(' mysql '.$hostname.':'.$port.' connection time:' . (\microtime(true) - $time));
-
-                # 连接ID
-                $this->_connection_ids[$this->_connection_type] = $_connection_id;
-                static::$_connection_instance[$_connection_id] = $tmplink;
-
-                unset($tmplink);
-
-                break;
-            }
-            catch ( \Exception $e )
-            {
-                if ( $i==$try_num )
-                {
-                    throw new \Exception('数据库链接失败');
+                    # 3毫秒后重新连接
+                    \usleep(3000);
                 }
             }
         }
@@ -413,7 +423,7 @@ class MySQL extends \Database\Driver
      * @param string $sql 查询语句
      * @param string $as_object 是否返回对象
      * @param boolean $use_connection_type 是否使用主数据库，不设置则自动判断
-     * @return \Database\Driver\MySQL\Result
+     * @return \Database_Driver_MySQL_Result
      */
     public function query($sql, $as_object=null, $use_connection_type=null)
     {
@@ -423,15 +433,16 @@ class MySQL extends \Database\Driver
         {
             $type = \strtoupper($m[1]);
         }
-        $typeArr = array(
-                'SELECT',
-                'SHOW',     //显示表
-                'EXPLAIN',  //分析
-                'DESCRIBE', //显示结结构
-                'INSERT',
-                'REPLACE',
-                'UPDATE',
-                'DELETE',
+        $typeArr = array
+        (
+            'SELECT',
+            'SHOW',     //显示表
+            'EXPLAIN',  //分析
+            'DESCRIBE', //显示结结构
+            'INSERT',
+            'REPLACE',
+            'UPDATE',
+            'DELETE',
         );
         if (!\in_array($type, $typeArr))
         {
@@ -564,7 +575,8 @@ class MySQL extends \Database\Driver
         if ( $type === 'INSERT' || $type === 'REPLACE' )
         {
             // Return a list of insert id and rows created
-            return array(
+            return array
+            (
                     \mysql_insert_id($connection),
                     \mysql_affected_rows($connection)
             );
@@ -577,7 +589,7 @@ class MySQL extends \Database\Driver
         else
         {
             // Return an iterator of results
-            return new \Database\Driver\MySQL\Result( $result, $sql, $as_object ,$this->config );
+            return new \Database_Driver_MySQL_Result( $result, $sql, $as_object ,$this->config );
         }
     }
 
@@ -647,7 +659,7 @@ class MySQL extends \Database\Driver
                 // Create a sub-query
                 return '(' . $value->compile() . ')';
             }
-            elseif ( $value instanceof \Database\Expression )
+            elseif ( $value instanceof \Database_Expression )
             {
                 // Use a raw expression
                 return $value->value();
@@ -762,7 +774,7 @@ class MySQL extends \Database\Driver
                 // Create a sub-query
                 $column = '(' . $column->compile() . ')';
             }
-            elseif ( $column instanceof \Database\Expression )
+            elseif ( $column instanceof \Database_Expression )
             {
                 // Use a raw expression
                 $column = $column->value();
@@ -1339,7 +1351,7 @@ class MySQL extends \Database\Driver
             {
                 $value = $value->compile();
             }
-            elseif ( $value instanceof \Database\Expression )
+            elseif ( $value instanceof \Database_Expression )
             {
                 $value = $value->value();
             }

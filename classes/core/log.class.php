@@ -1,5 +1,5 @@
 <?php
-namespace Core\Core;
+namespace Core;
 
 /**
  * Log核心类
@@ -11,7 +11,7 @@ namespace Core\Core;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class Log
+class Core_Log
 {
 
 }

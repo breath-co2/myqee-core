@@ -146,13 +146,13 @@ abstract class Core
                 exit();
             }
 
-            if ( (\IS_CLI || \IS_DEBUG) && \class_exists('\\Dev_Exception',true) )
+            if ( (\IS_CLI || \IS_DEBUG) && \class_exists('\\DevException',true) )
             {
                 # 注册脚本
-                \register_shutdown_function(array('\\Dev_Exception', 'shutdown_handler'));
+                \register_shutdown_function(array('\\DevException', 'shutdown_handler'));
                 # 捕获错误
-                \set_exception_handler(array('\\Dev_Exception', 'exception_handler'));
-                \set_error_handler(array('\\Dev_Exception', 'error_handler'), \error_reporting());
+                \set_exception_handler(array('\\DevException', 'exception_handler'));
+                \set_error_handler(array('\\DevException', 'error_handler'), \error_reporting());
             }
             else
             {
@@ -178,7 +178,7 @@ abstract class Core
 
         }
 
-        if ( \IS_DEBUG && isset($_REQUEST['debug']) && \class_exists('\\Debug\\Profiler',true) )
+        if ( \IS_DEBUG && isset($_REQUEST['debug']) && \class_exists('\\Debug_Profiler',true) )
         {
             \Debug\Profiler::setup();
         }
@@ -195,7 +195,7 @@ abstract class Core
 
                     if ($_GET['test'])
                     {
-                        /////////TEST
+                        //TODO///////TEST
                         echo '<br><pre>';
                         echo \microtime(1)-\START_TIME;
 
@@ -262,6 +262,9 @@ abstract class Core
      */
     public static function show_404($msg = null)
     {
+        # 将输出全部清除
+        static::close_buffers(false);
+
         \HttpIO::status(404);
         \HttpIO::send_headers();
 
@@ -270,7 +273,7 @@ abstract class Core
             $msg = \__('Page Not Found');
         }
 
-        if ( \IS_DEBUG && \class_exists('\\Dev_Exception',false) )
+        if ( \IS_DEBUG && \class_exists('\\DevException',false) )
         {
             if ( $msg instanceof \Exception )
             {
@@ -278,7 +281,7 @@ abstract class Core
             }
             else
             {
-                throw new \Exception($msg, 43);
+                throw new \Exception($msg, \E_PAGE_NOT_FOUND);
             }
         }
 
@@ -323,6 +326,9 @@ abstract class Core
      */
     public static function show_500($msg=null,$error_code=500)
     {
+        # 将输出全部清除
+        static::close_buffers(false);
+
         \HttpIO::status($error_code);
         \HttpIO::send_headers();
 
@@ -331,7 +337,7 @@ abstract class Core
             $msg = \__('Internal Server Error');
         }
 
-        if ( \IS_DEBUG && \class_exists('\\Dev_Exception',false) )
+        if ( \IS_DEBUG && \class_exists('\\DevException',false) )
         {
             if ( $msg instanceof \Exception )
             {
@@ -369,8 +375,8 @@ abstract class Core
         {
             list ( $REQUEST_URI ) = \explode('?', $_SERVER['REQUEST_URI'], 2);
             $REQUEST_URI = \htmlspecialchars(\rawurldecode($REQUEST_URI));
-            echo '<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">' .
 
+            echo '<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">' .
             \CRLF . '<html>' .
             \CRLF . '<head>' .
             \CRLF . '<title>'.\__('Internal Server Error').'</title>' .
@@ -380,6 +386,7 @@ abstract class Core
             \CRLF . '<p>The requested URL ' . $REQUEST_URI . ' was error on this server.</p>' .
             \CRLF . '<hr>' .
             \CRLF . $_SERVER['SERVER_SIGNATURE'] .
+            \CRLF . '<!-- '.\htmlspecialchars($msg).' -->' .
             \CRLF . '</body>' .
             \CRLF . '</html>';
         }
@@ -538,6 +545,7 @@ abstract class Core
      * 返回一个用.表示的字符串的key对应数组的内容
      *
      * 例如
+     *
      *    $arr = array(
      *        'a' => array(
      *        	  'b' => 123,
@@ -596,8 +604,7 @@ abstract class Core
 
             if ( ((\E_ERROR | \E_PARSE | \E_CORE_ERROR | \E_COMPILE_ERROR | \E_USER_ERROR | \E_RECOVERABLE_ERROR) & $error['type'])!==0 )
             {
-                $error['file'] = static::debug_path($error['file']);
-                static::show_500(\var_export($error, true));
+                static::show_500('Msg:'.$error['message']."\n".'File:'.static::debug_path($error['file'])."\n".'Line:'.$error['line'],$error['type']);
                 exit();
             }
         }

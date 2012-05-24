@@ -1,5 +1,5 @@
 <?php
-namespace Core\OOP\ORM\Finder;
+namespace Core;
 
 /**
  * ORM 数据库核心类
@@ -11,7 +11,7 @@ namespace Core\OOP\ORM\Finder;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class DB extends \OOP\ORM
+class OOP_ORM_Finder_DB extends \OOP_ORM
 {
 
     /**
@@ -32,7 +32,7 @@ class DB extends \OOP\ORM
     {
         if ( null === $this->tablename )
         {
-            throw new \Exception(__('orm tablename is not declared.'));
+            throw new \Exception(\__('orm tablename is not declared.'));
         }
         parent::__construct();
     }
@@ -62,7 +62,7 @@ class DB extends \OOP\ORM
      *
      * @param string $sql 指定SQL语句，不传则使用QueryBulider构造
      * @param boolean $use_master 查询是否用主数据库
-     * @return \OOP\ORM\Result
+     * @return \OOP_ORM_Result
      */
     public function find($sql = null , $use_master = null)
     {
@@ -134,7 +134,7 @@ class DB extends \OOP\ORM
             if ( $field_name==$this->id_field_name() )
             {
                 $value = $bulider['where'][0]['AND'][2];
-                $id_data = \OOP\ORM\Data::id_field_cache_data($this->get_orm_name('Data'), $value);
+                $id_data = \OOP_ORM_Data::id_field_cache_data($this->get_orm_name('Data'), $value);
                 if ($id_data)
                 {
                     # 获取到数据
@@ -198,7 +198,7 @@ class DB extends \OOP\ORM
      * @param   mixed   column name or array($column, $alias) or object
      * @param   string  logic operator
      * @param   mixed   column value
-     * @return  \OOP\ORM\Finder\DB
+     * @return  \OOP_ORM_Finder_DB
      */
     public function where($column, $value = null, $op = '=')
     {
@@ -223,7 +223,7 @@ class DB extends \OOP\ORM
      * Start returning results after "OFFSET ..."
      *
      * @param   integer   starting result number
-     * @return  \OOP\ORM\Finder\DB
+     * @return  \OOP_ORM_Finder_DB
      */
     public function offset($number)
     {
@@ -235,7 +235,7 @@ class DB extends \OOP\ORM
      * Return up to "LIMIT ..." results
      *
      * @param   integer  maximum results to return
-     * @return  \OOP\ORM\Finder\DB
+     * @return  \OOP_ORM_Finder_DB
      */
     public function limit($number)
     {

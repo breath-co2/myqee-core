@@ -93,7 +93,8 @@ class HttpIO
     const PARAM_TYPE_OLDDATA = 'old';
 
     // HTTP status codes and messages
-    protected static $messages = array(
+    protected static $messages = array
+    (
         // Informational 1xx
         100 => 'Continue',
         101 => 'Switching Protocols',
@@ -532,5 +533,10 @@ class HttpIO
         }
 
         return isset(static::$params[$key])?static::$params[$key]:$default;
+    }
+
+    public static function query($arr)
+    {
+
     }
 }

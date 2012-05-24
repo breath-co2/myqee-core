@@ -45,7 +45,7 @@ class HttpGet
     /**
      * 驱动
      *
-     * @var \HttpGet\Driver\Curl
+     * @var \HttpGet_Driver_Curl
      */
     protected $driver;
 
@@ -150,7 +150,7 @@ class HttpGet
      * @param array $data
      * @param $timeout
      * @return string
-     * @return \HttpGet\Result 但个URL返回当然内容对象
+     * @return \HttpGet_Result 但个URL返回当然内容对象
      */
     public function get($url, $timeout = 10)
     {
@@ -163,12 +163,12 @@ class HttpGet
             $result = new \Arr();
             foreach ( $data as $key => $item )
             {
-                $result[$key] = new \HttpGet\Result($item);
+                $result[$key] = new \HttpGet_Result($item);
             }
         }
         else
         {
-            $result = new \HttpGet\Result($data);
+            $result = new \HttpGet_Result($data);
         }
 
         return $result;
@@ -179,7 +179,7 @@ class HttpGet
      * @param $url
      * @param $data
      * @param $timeout
-     * @return \HttpGet\Result
+     * @return \HttpGet_Result
      */
     public function post($url, $data, $timeout = 30)
     {
@@ -189,7 +189,7 @@ class HttpGet
         $data = $this->driver()->get_resut_data();
         $data['total_time'] = $time;
 
-        return new \HttpGet\Result($data);
+        return new \HttpGet_Result($data);
     }
 
     public function __call($method, $params)
@@ -203,14 +203,13 @@ class HttpGet
     /**
      * 获取当前驱动
      *
-     * @return \HttpGet\Driver\Curl
+     * @return \HttpGet_Driver_Curl
      */
     public function driver()
     {
         if ( null === $this->driver )
         {
-            if (\strtolower($this->driver)=='default')$this->driver = 'Default_Driver';
-            $f = '\\HttpGet\\Driver\\' . $this->type;
+            $f = '\\HttpGet_Driver_' . $this->type;
             $this->driver = new $f();
         }
 

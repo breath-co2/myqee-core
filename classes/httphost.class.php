@@ -301,7 +301,7 @@ class HttpHost
             if (!$port)$port = 80;
         }
 
-        \curl_setopt($ch, CURLOPT_PORT, $port);
+        \curl_setopt($ch, \CURLOPT_PORT, $port);
         \curl_setopt($ch, \CURLOPT_USERAGENT, 'MyQEE System Call');
         \curl_setopt($ch, \CURLOPT_HTTPHEADER, array('Host: '.$m[2],'X-Myqee-System-Hash: '.$hash,'X-Myqee-System-Time: '.$mictime,'X-Myqee-System-Debug: '.(\IS_DEBUG?1:0)));
 
@@ -446,7 +446,7 @@ class HttpHost
         else
         {
             # 没有，则用系统配置和数据库加密
-            $hash = \sha1($vars.$mictime.serialize(\Core::config('core')).\serialize(\Core::config('database')).$host);
+            $hash = \sha1($vars.$mictime.\serialize(\Core::config('core')).\serialize(\Core::config('database')).$host);
         }
 
         return $hash;

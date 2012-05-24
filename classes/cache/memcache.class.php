@@ -1,5 +1,5 @@
 <?php
-namespace Core\Cache;
+namespace Core;
 
 /**
  * Memcache缓存驱动器核心类
@@ -11,7 +11,7 @@ namespace Core\Cache;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class Memcache
+class Cache_Memcache
 {
 
     /**

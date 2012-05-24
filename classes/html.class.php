@@ -16,7 +16,8 @@ class html
     /**
      * @var  array  preferred order of attributes
      */
-    public static $attribute_order = array(
+    public static $attribute_order = array
+    (
         'action',
         'method',
         'type',

@@ -1,5 +1,5 @@
 <?php
-namespace Core\Cache;
+namespace Core;
 
 /**
  * 数据库缓存驱动器核心类
@@ -11,7 +11,7 @@ namespace Core\Cache;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class Database
+class Cache_Database
 {
     /**
      * 数据库配置
@@ -114,7 +114,8 @@ class Database
 
         foreach ($key as $k=>$item)
         {
-            $data = array(
+            $data = array
+            (
                 'key'         => \md5($k),
                 'key_str'     => $k,
                 'value'       => $value,

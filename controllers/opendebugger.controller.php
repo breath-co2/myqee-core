@@ -1,5 +1,5 @@
 <?php
-namespace Core\Controller;
+namespace Core;
 
 /**
  * Controller_OpenDebugger.
@@ -12,7 +12,7 @@ namespace Core\Controller;
  * @link        http://www.verycd.com/
  * @since       Version 4.0
  */
-class OpenDebugger extends \Controller
+class Controller_OpenDebugger extends \Controller
 {
 
     protected $password = array();

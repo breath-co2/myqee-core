@@ -12,7 +12,8 @@ namespace Core;
  */
 class PinYin
 {
-    protected static $d = array(
+    protected static $d = array
+    (
         array("a", - 20319),
         array("ai", - 20317),
         array("an", - 20304),

@@ -11,9 +11,8 @@ namespace Core;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class Database extends \Database\QueryBuilder
+class Database extends \QueryBuilder
 {
-
     /**
      * MySQL驱动类型
      *
@@ -50,7 +49,7 @@ class Database extends \Database\QueryBuilder
     /**
      * 当前驱动
      *
-     * @var \Database\Driver\MySQLI
+     * @var \Database_Driver_MySQLI
      */
     protected $driver;
 
@@ -123,7 +122,7 @@ class Database extends \Database\QueryBuilder
         {
             $driver = 'MySQL';
         }
-        $driver = '\\Database\\Driver\\'.$driver;
+        $driver = '\\Database_Driver_'.$driver;
         if (!\class_exists($driver, true))
         {
             throw new \Exception('Database Driver:'.$driver.' not found.');
@@ -151,7 +150,7 @@ class Database extends \Database\QueryBuilder
     /**
     * 获取驱动引擎对象
     *
-    * @return \Database\Driver\MySQLI
+    * @return \Database_Driver_MySQLI
     */
     public function driver()
     {
@@ -172,7 +171,7 @@ class Database extends \Database\QueryBuilder
     * @param string $sql
     * @param boolean $as_object 返回对象名称 默认false，即返回数组
     * @param boolean $use_master 是否使用主数据库，不设置则自动判断,对更新的SQL无效
-    * @return \Database\Driver\MySQLI\Result
+    * @return \Database_Driver_MySQLI_Result
     */
     public function query($sql, $as_object = false, $use_master = null)
     {
@@ -224,7 +223,7 @@ class Database extends \Database\QueryBuilder
      *
      * @param boolean $as_object 返回对象名称 默认false，即返回数组
      * @param boolean $use_master 是否使用主数据库，不设置则自动判断
-     * @return \Database\Driver\MySQLI\Result
+     * @return \Database_Driver_MySQLI_Result
      */
     public function get($as_object = false, $use_master = null)
     {
@@ -273,7 +272,7 @@ class Database extends \Database\QueryBuilder
      *
      * @param string $table
      * @param array $value
-     * @param \Database\Result
+     * @param \Database_Result
      * @return array(插入ID,作用行数)
      */
     public function insert($table = null, $value = null)
@@ -341,7 +340,7 @@ class Database extends \Database\QueryBuilder
      * @param string $table
      * @param array $value
      * @param array $where
-     * @return \Database\Result
+     * @return \Database_Result
      */
     public function replace($table = null, $value = null, $where = null)
     {
@@ -354,7 +353,7 @@ class Database extends \Database\QueryBuilder
      * @param string $table
      * @param array $value
      * @param array $where
-     * @return \Database\Result
+     * @return \Database_Result
      */
     public function merge($table = null, $value = null, $where = null)
     {
@@ -379,7 +378,7 @@ class Database extends \Database\QueryBuilder
     /**
      * 获取事务对象
      *
-     * @return \Database\Transaction 事务对象
+     * @return \Database_Transaction 事务对象
      */
     public function transaction()
     {
@@ -440,7 +439,8 @@ class Database extends \Database\QueryBuilder
     public static function parse_dsn($dsn)
     {
 
-        $db = array(
+        $db = array
+        (
             'type'       => false,
             'username'   => false,
             'password'   => false,

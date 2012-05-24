@@ -1,5 +1,5 @@
 <?php
-namespace Core\Database\Driver;
+namespace Core;
 
 /**
  * 数据库MySQLI驱动核心类
@@ -11,7 +11,7 @@ namespace Core\Database\Driver;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class MySQLI extends \Database\Driver
+class Database_Driver_MySQLI extends \Database_Driver
 {
     /**
      * MySQL使用反引号标识符
@@ -154,45 +154,56 @@ class MySQLI extends \Database\Driver
 
         }
 
-        $try_num = 5;
-        for( $i = 1; $i <= $try_num; $i++ )
+        # 错误服务器
+        static $error_host = array();
+
+        while (true)
         {
-            $hostname = $this->_get_rand_host();
+            $hostname = $this->_get_rand_host($error_host);
+            if (false===$hostname)throw new \Exception('数据库链接失败');
+
             $_connection_id = $this->_get_connection_hash($hostname, $port, $username);
             static::$_current_connection_id_to_hostname[$_connection_id] = $hostname.':'.$port;
 
-            # 尝试重连
-            try
+            for ($i=1; $i<=2; $i++)
             {
-                $time = \microtime(true);
-                if ( empty($persistent) )
+                # 尝试重连
+                try
                 {
-                    $tmplink =\mysqli_init();
-                    \mysqli_options($tmplink,\MYSQLI_OPT_CONNECT_TIMEOUT, 3);
-                    \mysqli_real_connect($tmplink, $hostname, $username, $password, $database, $port, null,\MYSQLI_CLIENT_COMPRESS);
+                    $time = \microtime(true);
+
+                    if ( empty($persistent) )
+                    {
+                        $tmplink = \mysqli_init();
+                        \mysqli_options($tmplink, \MYSQLI_OPT_CONNECT_TIMEOUT, 3);
+                        \mysqli_real_connect($tmplink, $hostname, $username, $password, $database, $port, null, \MYSQLI_CLIENT_COMPRESS);
+                    }
+                    else
+                    {
+                        $tmplink = new \mysqli($hostname, $username, $password, $database, $port);
+                    }
+
+                    \Core::debug()->info('mysqli '.$hostname.':'.$port.' connection time:' . (\microtime(true) - $time));
+
+                    # 连接ID
+                    $this->_connection_ids[$this->_connection_type] = $_connection_id;
+                    static::$_connection_instance[$_connection_id] = $tmplink;
+
+                    static::$_current_databases[$_connection_id] = $database;
+
+                    unset($tmplink);
+
+                    break 2;
                 }
-                else
+                catch ( \Exception $e )
                 {
-                    $tmplink = new \mysqli($hostname, $username, $password, $database, $port);
-                }
+                    if (2==$i && !\in_array($hostname, $error_host))
+                    {
+                        $error_host[] = $hostname;
+                    }
 
-                \Core::debug()->info('mysqli '.$hostname.':'.$port.' connection time:' . (\microtime(true) - $time));
-
-                # 连接ID
-                $this->_connection_ids[$this->_connection_type] = $_connection_id;
-                static::$_connection_instance[$_connection_id] = $tmplink;
-
-                static::$_current_databases[$_connection_id] = $database;
-
-                unset($tmplink);
-
-                break;
-            }
-            catch ( \Exception $e )
-            {
-                if ( $i == $try_num )
-                {
-                    throw new \Exception('数据库链接失败');
+                    # 3毫秒后重新连接
+                    \usleep(3000);
                 }
             }
         }
@@ -425,7 +436,8 @@ class MySQLI extends \Database\Driver
         {
             $type = \strtoupper($m[1]);
         }
-        $typeArr = array(
+        $typeArr = array
+        (
             'SELECT',
             'SHOW',     //显示表
             'EXPLAIN',  //分析
@@ -566,7 +578,8 @@ class MySQLI extends \Database\Driver
         if ( $type === 'INSERT' || $type === 'REPLACE' )
         {
             // Return a list of insert id and rows created
-            return array(
+            return array
+            (
                \mysqli_insert_id($connection),
                \mysqli_affected_rows($connection)
             );
@@ -579,7 +592,7 @@ class MySQLI extends \Database\Driver
         else
         {
             // Return an iterator of results
-            return new \Database\Driver\MySQLI\Result( $result, $sql, $as_object ,$this->config );
+            return new \Database_Driver_MySQLI_Result( $result, $sql, $as_object ,$this->config );
         }
     }
 
@@ -763,7 +776,7 @@ class MySQLI extends \Database\Driver
                 // Create a sub-query
                 $column = '(' . $column->compile() . ')';
             }
-            elseif ( $column instanceof \Database\Expression )
+            elseif ( $column instanceof \Database_Expression )
             {
                 // Use a raw expression
                 $column = $column->value();
@@ -1340,7 +1353,7 @@ class MySQLI extends \Database\Driver
             {
                 $value = $value->compile();
             }
-            elseif ( $value instanceof \Database\Expression )
+            elseif ( $value instanceof \Database_Expression )
             {
                 $value = $value->value();
             }

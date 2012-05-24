@@ -1,5 +1,5 @@
 <?php
-namespace Core\Database\Driver\MySQLI;
+namespace Core;
 
 /**
  * 数据库MySQLI返回对象
@@ -11,7 +11,7 @@ namespace Core\Database\Driver\MySQLI;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class Result extends \Database\Result
+class Database_Driver_MySQLI_Result extends \Database_Result
 {
 
     protected $_internal_row = 0;

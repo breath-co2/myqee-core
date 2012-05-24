@@ -1,5 +1,5 @@
 <?php
-namespace Core\OOP\ORM;
+namespace Core;
 
 /**
  * ORM 索引核心类
@@ -11,7 +11,7 @@ namespace Core\OOP\ORM;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-abstract class Index
+abstract class OOP_ORM_Index
 {
 
     /**

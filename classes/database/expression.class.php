@@ -1,5 +1,5 @@
 <?php
-namespace Core\Database;
+namespace Core;
 
 /**
  * 不被修改的SQL语句
@@ -11,7 +11,7 @@ namespace Core\Database;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class Expression
+class Database_Expression
 {
 
     // Raw expression string

@@ -1,10 +1,10 @@
 <?php
 
-namespace ORM
+namespace
 {
-    if ( !class_exists('\ORM\Member_Data',true) )
+    if ( !class_exists('\ORM_Member_Data',true) )
     {
-        class Member_Data extends \OOP\ORM\Data
+        class ORM_Member_Data extends \OOP_ORM_Data
         {
 
         }
@@ -22,7 +22,7 @@ namespace Core
      * @copyright  Copyright (c) 2008-2012 myqee.com
      * @license    http://www.myqee.com/license.html
      */
-    class Member extends \ORM\Member_Data
+    class Member extends \ORM_Member_Data
     {
         /**
          * 定义此对象的ORM基础名称为Member
@@ -43,7 +43,8 @@ namespace Core
          *
          * @var int
          */
-        public $id = array(
+        public $id = array
+        (
             'field_name' => 'id',
             'is_id_field' => true,
         );
@@ -86,7 +87,8 @@ namespace Core
         public $perm_setting = array
         (
             'field_name' => 'perm',
-            'format' => array(
+            'format' => array
+            (
                 'serialize',
             ),
         );
@@ -94,20 +96,20 @@ namespace Core
         /**
          * 所有组
          *
-         * @var \Member\Group_Result
+         * @var \Member_Group_Result
          */
         protected $_groups = null;
 
         /**
          * 返回所有组的对象集
          *
-         * @return \Member\Group_Result
+         * @return \Member_Group_Result
          */
         public function groups()
         {
             if ( null!==$this->_groups )return $this->_groups;
 
-            $orm_group = new \Member\Group();
+            $orm_group = new \Member_Group();
 
             $this->_groups = $orm_group->get_all_groups_by_member($this);
 
@@ -117,8 +119,8 @@ namespace Core
         /**
          * 设置管理组
          *
-         * @param \Member\Group_Result $member_group_result
-         * @return \ORM\Member
+         * @param \Member_Group_Result $member_group_result
+         * @return \ORM_Member
          */
         public function set_groups(\Member\Group_Result $member_group_result)
         {
@@ -130,7 +132,7 @@ namespace Core
         /**
          * 插入用户数据
          *
-         * @see \OOP\ORM\Data::insert()
+         * @see \OOP_ORM_Data::insert()
          */
         public function insert()
         {

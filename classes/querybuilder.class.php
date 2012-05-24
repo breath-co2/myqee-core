@@ -1,5 +1,5 @@
 <?php
-namespace Core\Database;
+namespace Core;
 
 /**
  * SQL构造核心类
@@ -28,7 +28,7 @@ class QueryBuilder
     /**
      * 解析为SQL语句
      *
-     * @param   object  Database instance
+     * @param   object Database instance
      * @return  string
      */
     public function compile(Database $db)

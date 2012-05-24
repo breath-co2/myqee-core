@@ -1,5 +1,5 @@
 <?php
-namespace Core\Controller;
+namespace Core;
 
 /**
  * 内部调用文件操作控制器
@@ -13,7 +13,7 @@ namespace Core\Controller;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class File extends \Controller
+class Controller_File extends \Controller
 {
 
     /**

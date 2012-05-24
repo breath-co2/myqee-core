@@ -1,5 +1,5 @@
 <?php
-namespace Core\Database\Driver\MySQL;
+namespace Core;
 
 /**
  * MySQL事务
@@ -11,7 +11,7 @@ namespace Core\Database\Driver\MySQL;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class Transaction extends \Database\Transaction
+class Database_Driver_MySQL_Transaction extends \Database_Transaction
 {
     /**
      * 当前连接ID

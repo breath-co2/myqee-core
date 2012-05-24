@@ -1,7 +1,7 @@
 <?php
-namespace Core\Controller\Test;
+namespace Core;
 
-class A extends \Controller
+class Controller_Test__A extends \Controller
 {
     public function action_b($b='')
     {

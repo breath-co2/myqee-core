@@ -1,5 +1,5 @@
 <?php
-namespace Core\HttpGet;
+namespace Core;
 
 /**
  * Http请求返回对象核心类
@@ -11,7 +11,7 @@ namespace Core\HttpGet;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class Result
+class HttpGet_Result
 {
 
     protected $data;

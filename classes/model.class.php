@@ -151,7 +151,7 @@ class Model
                 if ( \is_object($item) )
                 {
                     # 如果是对象，则需要稍微处理下
-                    if ( $item instanceof \OOP\ORM\Data )
+                    if ( $item instanceof \OOP_ORM_Data )
                     {
                         # ORM DB对象
                         $id_field = $item->id_field_name();

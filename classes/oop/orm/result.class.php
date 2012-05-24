@@ -1,5 +1,5 @@
 <?php
-namespace Core\OOP\ORM;
+namespace Core;
 
 /**
  * ORM 查询返回核心类
@@ -11,7 +11,7 @@ namespace Core\OOP\ORM;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class Result extends \ArrayIterator
+class OOP_ORM_Result extends \ArrayIterator
 {
 
     /**
@@ -28,7 +28,7 @@ class Result extends \ArrayIterator
         static::$_ORM_RESULTS[$this->_orm_uniqid] = $array;
         foreach ( $array as $item )
         {
-            if ( \is_object($item) && $item instanceof \OOP\ORM\Data )
+            if ( \is_object($item) && $item instanceof \OOP_ORM_Data )
             {
                 $item->__orm_callback_ini_result($this);
             }

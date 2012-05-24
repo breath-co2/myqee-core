@@ -1,5 +1,5 @@
 <?php
-namespace Core\Database;
+namespace Core;
 
 /**
  * 数据返回对象核心类
@@ -11,7 +11,7 @@ namespace Core\Database;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-abstract class Result implements \Countable, \Iterator, \SeekableIterator, \ArrayAccess
+abstract class Database_Result implements \Countable, \Iterator, \SeekableIterator, \ArrayAccess
 {
 
     protected $_config;
@@ -89,6 +89,10 @@ abstract class Result implements \Countable, \Iterator, \SeekableIterator, \Arra
         {
             return \call_user_func_array($m, $this->_result, $v);
         }
+        else
+        {
+            throw new \Exception('method not found in ' . \get_class($this));
+        }
     }
 
     /**
@@ -127,7 +131,7 @@ abstract class Result implements \Countable, \Iterator, \SeekableIterator, \Arra
         if ( $this->_current_row !== $this->_internal_row && ! $this->seek($this->_current_row) ) return false;
 
         // Increment internal row for optimization assuming rows are fetched in order
-        $this->_internal_row ++;
+        $this->_internal_row++;
 
         $data = $this->fetch_assoc();
 

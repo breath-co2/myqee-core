@@ -1,5 +1,5 @@
 <?php
-namespace Core\OOP\ORM\Finder;
+namespace Core;
 
 /**
  * ORM WGET核心类
@@ -11,7 +11,7 @@ namespace Core\OOP\ORM\Finder;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class HttpGet extends \OOP\ORM
+class OOP_ORM_Finder_HttpGet extends \OOP_ORM
 {
 
     /**
@@ -30,7 +30,7 @@ class HttpGet extends \OOP\ORM
     {
         if ( null === $this->api_url )
         {
-            throw new \Exception(__('orm api url is not declared.'));
+            throw new \Exception(\__('orm api url is not declared.'));
         }
         parent::__construct();
     }

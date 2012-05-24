@@ -1,5 +1,5 @@
 <?php
-namespace Core\Core;
+namespace Core;
 
 /**
  * URL核心类
@@ -11,7 +11,7 @@ namespace Core\Core;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class Url
+class Core_Url
 {
     public function __construct()
     {
@@ -25,7 +25,7 @@ class Url
      */
     public function site($uri='')
     {
-        return $this->base() . ltrim($uri, '/') . (\Bootstrap::$config['core']['url_suffix']?\Bootstrap::$config['core']['url_suffix']:'');
+        return $this->base() . \ltrim($uri, '/') . (\Bootstrap::$config['core']['url_suffix']?\Bootstrap::$config['core']['url_suffix']:'');
     }
 
     /**

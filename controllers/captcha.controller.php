@@ -1,7 +1,7 @@
 <?php
-namespace Core\Controller;
+namespace Core;
 
-class Captcha extends \Controller
+class Controller_Captcha extends \Controller
 {
     /**
      * 输出缩略图

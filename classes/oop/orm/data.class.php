@@ -1,5 +1,5 @@
 <?php
-namespace Core\OOP\ORM;
+namespace Core;
 
 /**
  * ORM Data核心类
@@ -11,7 +11,7 @@ namespace Core\OOP\ORM;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class Data
+class OOP_ORM_Data
 {
     /**
      * ID 字段名
@@ -204,7 +204,8 @@ class Data
         # 需要更新配置
         if ( $need_check_config )
         {
-            \OOP\ORM\Parse::check_config(
+            \OOP_ORM_Parse::check_config
+            (
                 static::$_offset_setting[$class_name]
                 ,
                 static::$_field_to_offset[$class_name]
@@ -223,7 +224,8 @@ class Data
      */
     public function __sleep()
     {
-        $this->__orm_sleep_data__ = array(
+        $this->__orm_sleep_data__ = array
+        (
             'v' => '1.0',
             'd' => $this->get_field_data(),
         );
@@ -231,7 +233,7 @@ class Data
         $r = array('__orm_sleep_data__');
 
         # 获取外部设置的key，比如:$obj->test
-        $r2 = \array_keys(\OOP\ORM\Parse::get_object_vars($this));
+        $r2 = \array_keys(\OOP_ORM_Parse::get_object_vars($this));
 
         # 合并数组并移除重复值
         return \array_unique(\array_merge($r,$r2));
@@ -441,7 +443,7 @@ class Data
             $parent_data = $this->$parent_offset;
 
             # 设置子节点数据
-            $is_changed = \OOP\ORM\Parse::set_sub_offset_data( $parent_data , $value , \explode('.',$config['_sub_key_name']) );
+            $is_changed = \OOP_ORM_Parse::set_sub_offset_data( $parent_data , $value , \explode('.',$config['_sub_key_name']) );
 
             # 将数据设置到父节点
             if ( false===$is_changed || false===$this->__set($parent_offset, $parent_data) )
@@ -479,7 +481,7 @@ class Data
             # 反解格式化数据
             if ( isset($config['format']) )
             {
-                $value = \OOP\ORM\Parse::de_format_data($value, $config['format']);
+                $value = \OOP_ORM_Parse::de_format_data($value, $config['format']);
             }
 
             if ( isset($this->_created_offset[$key]) )
@@ -538,7 +540,7 @@ class Data
                         $obj = $this->_offset_data[$sub_key];
                         if ( isset($config['object']['callback']['set_data']) )
                         {
-                            $sub_data = \OOP\ORM\Parse::get_sub_offset_data( $this->$key , \explode('.',$sub_config['_sub_key_name']) );
+                            $sub_data = \OOP_ORM_Parse::get_sub_offset_data( $this->$key , \explode('.',$sub_config['_sub_key_name']) );
                             $call_set_data_function = $config['object']['callback']['set_data'];
                             $obj->$call_set_data_function($sub_data);
                             # 调用过设置数据的的回调函数后就不需要再清理了
@@ -547,12 +549,12 @@ class Data
                         else
                         {
                             # 没有设置回调函数
-                            if ($obj instanceof \OOP\ORM\Data || \method_exists($obj, 'getArrayCopy') )
+                            if ($obj instanceof \OOP_ORM_Data || \method_exists($obj, 'getArrayCopy') )
                             {
                                 # 获取当前数据
                                 $tmp_data = $obj->getArrayCopy();
                                 # 获取父节点的子数据
-                                $sub_data = \OOP\ORM\Parse::get_sub_offset_data( $this->$key , \explode('.',$sub_config['_sub_key_name']) );
+                                $sub_data = \OOP_ORM_Parse::get_sub_offset_data( $this->$key , \explode('.',$sub_config['_sub_key_name']) );
                                 if ( $tmp_data===$sub_data )
                                 {
                                     # 未修改过，不需要清理
@@ -564,7 +566,7 @@ class Data
                                 # 获取当前数据
                                 $tmp_data = $obj->__toString();
                                 # 获取父节点的子数据
-                                $sub_data = \OOP\ORM\Parse::get_sub_offset_data( $this->$key , \explode('.',$sub_config['_sub_key_name']) );
+                                $sub_data = \OOP_ORM_Parse::get_sub_offset_data( $this->$key , \explode('.',$sub_config['_sub_key_name']) );
                                 if ( $tmp_data===$sub_data )
                                 {
                                     # 未修改过，不需要清理
@@ -631,7 +633,7 @@ class Data
                 }
                 elseif ( $v instanceof \stdClass )
                 {
-                    $arr[$k] = (array)\stdClass;
+                    $arr[$k] = (array)$v;
                 }
                 else
                 {
@@ -645,7 +647,7 @@ class Data
         }
 
         # 获取public的数据
-        $k = \array_keys(\OOP\ORM\Parse::get_object_vars($this));
+        $k = \array_keys(\OOP_ORM_Parse::get_object_vars($this));
         if ($k)foreach ($k as $v)
         {
             $arr[$v] = $this->$v;
@@ -919,7 +921,7 @@ class Data
                 $run = $config['object']['callback']['is_change'];
                 $is_change = $tmp_data->$run();
             }
-            elseif ( $tmp_data instanceof \OOP\ORM\Data )
+            elseif ( $tmp_data instanceof \OOP_ORM_Data )
             {
                 $is_change = $tmp_data->__orm_callback_data_is_change_();
             }
@@ -931,7 +933,7 @@ class Data
             # 没有修改
             if ( !$is_change ) return;
 
-            $tmp_data = \OOP\ORM\Parse::get_object_field_data($tmp_data, isset($config['object']['callback']['get_data']) ? $config['object']['callback']['get_data'] : null);
+            $tmp_data = \OOP_ORM_Parse::get_object_field_data($tmp_data, isset($config['object']['callback']['get_data']) ? $config['object']['callback']['get_data'] : null);
             if ( false === $tmp_data )
             {
                 return;
@@ -952,10 +954,10 @@ class Data
                     if ( \is_object($sub_data) )
                     {
                         # 数据是一个对象
-                        $sub_data = \OOP\ORM\Parse::get_object_field_data($sub_data, isset($sub_config['object']['callback']['get_data']) ? $sub_config['object']['callback']['get_data'] : null);
+                        $sub_data = \OOP_ORM_Parse::get_object_field_data($sub_data, isset($sub_config['object']['callback']['get_data']) ? $sub_config['object']['callback']['get_data'] : null);
                     }
                     # 将子节点数据合并进来
-                    \OOP\ORM\Parse::set_sub_offset_data( $tmp_data , $sub_data , \explode('.',$sub_config['_sub_key_name']) );
+                    \OOP_ORM_Parse::set_sub_offset_data( $tmp_data , $sub_data , \explode('.',$sub_config['_sub_key_name']) );
                 }
             }
         }
@@ -963,7 +965,7 @@ class Data
         # 序列化数据
         if ( isset($config['format']) )
         {
-            $tmp_data = \OOP\ORM\Parse::format_data($tmp_data, $config['format']);
+            $tmp_data = \OOP_ORM_Parse::format_data($tmp_data, $config['format']);
         }
 
         if ( $renew_original_field_data )
@@ -1006,7 +1008,7 @@ class Data
     /**
      * 获取当前ORM
      *
-     * @return \OOP\ORM\Finder\DB|\OOP\ORM\Finder\Cache|\OOP\ORM\Finder\HttpGet
+     * @return \OOP_ORM_Finder\DB|\OOP_ORM_Finder\Cache|\OOP_ORM_Finder\HttpGet
      */
     public function orm()
     {
@@ -1041,7 +1043,7 @@ class Data
             {
                 throw new \Exception('$this->_orm_name未定义');
             }
-            $orm_class_name = '\\ORM\\' . $this->_orm_name . '_Finder';
+            $orm_class_name = '\\ORM_' . $this->_orm_name . '_Finder';
 
             if ( !\class_exists($orm_class_name, true) )
             {
@@ -1061,7 +1063,7 @@ class Data
     {
         if ( !$this->_orm_result_uniqid ) return array($this);
 
-        $data = \OOP\ORM\Result::get_group_data($this->_orm_result_uniqid);
+        $data = \OOP_ORM_Result::get_group_data($this->_orm_result_uniqid);
         if ($data)
         {
             return $data;
@@ -1094,7 +1096,7 @@ class Data
         {
             $item = $this->$item;
         }
-        return \OOP\ORM\Parse::delete_orm_cache_data( $this, $index , $c_config );
+        return \OOP_ORM_Parse::delete_orm_cache_data( $this, $index , $c_config );
     }
 
     /**
@@ -1119,7 +1121,7 @@ class Data
         # 无缓存设置
         if (!isset($config['cache']))return true;
 
-        return \OOP\ORM\Parse::delete_offset_cache_data( $this, $index, $config['cache'] );
+        return \OOP_ORM_Parse::delete_offset_cache_data( $this, $index, $config['cache'] );
     }
 
     /**
@@ -1168,7 +1170,7 @@ class Data
             if ( isset($config['cache']) )
             {
                 # 数据缓存
-                $data = \OOP\ORM\Parse::get_offset_cache_data($this , $index , $config['cache']);
+                $data = \OOP_ORM_Parse::get_offset_cache_data($this , $index , $config['cache']);
                 if (false!==$data)
                 {
                     $this->_offset_data[$index] = $data;
@@ -1186,12 +1188,12 @@ class Data
                 {
                     # 映射字段
                     $parent_offset = $config['_parent_offset_name'];
-                    $data = \OOP\ORM\Parse::get_sub_offset_data($this->$parent_offset , \explode('.',$config['_sub_key_name']) ,$index );
+                    $data = \OOP_ORM_Parse::get_sub_offset_data($this->$parent_offset , \explode('.',$config['_sub_key_name']) ,$index );
                 }
                 elseif ( isset($config['orm']) )
                 {
                     # 获取数据
-                    $data = \OOP\ORM\Parse::get_orm_data_by_config($this,$config['orm'], $index);
+                    $data = \OOP_ORM_Parse::get_orm_data_by_config($this,$config['orm'], $index);
                 }
                 elseif ( isset($config['data']) )
                 {
@@ -1208,17 +1210,17 @@ class Data
                     # 处理缓存
                     if ( isset($config['data']['cache']) )
                     {
-                        $data = \OOP\ORM\Parse::get_cache_data($index, @$config['data']['where'], $config['data']['cache']);
+                        $data = \OOP_ORM_Parse::get_cache_data($index, @$config['data']['where'], $config['data']['cache']);
                     }
                     if ( false === $data )
                     {
                         # 获取数据
-                        $data = \OOP\ORM\Parse::get_data($config['data'] , $this);
+                        $data = \OOP_ORM_Parse::get_data($config['data'] , $this);
 
                         # 缓存数据
                         if ( isset($config['data']['cache']) )
                         {
-                            \OOP\ORM\Parse::set_cache_data($index, @$config['data']['where'], $config['data']['cache'], $data);
+                            \OOP_ORM_Parse::set_cache_data($index, @$config['data']['where'], $config['data']['cache'], $data);
                         }
                     }
                 }
@@ -1259,7 +1261,7 @@ class Data
         # 设置缓存
         if ( false!==$data && isset($config['cache']) )
         {
-            \OOP\ORM\Parse::set_offset_cache_data($this , $index , $config['cache'] , $data);
+            \OOP_ORM_Parse::set_offset_cache_data($this , $index , $config['cache'] , $data);
         }
 
         return true;
@@ -1326,7 +1328,7 @@ class Data
     /**
      * 用于给ORM回调初始化数据
      */
-    protected function __orm_callback_ini_result_(\OOP\ORM\Result $result)
+    protected function __orm_callback_ini_result_(\OOP_ORM_Result $result)
     {
         $this->_orm_result_uniqid = $result->get_uniqid();
     }

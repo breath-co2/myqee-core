@@ -14,6 +14,12 @@ namespace
     class Cookie extends \Core\Cookie{}
 
     class Database extends \Core\Database{}
+    abstract class Database_Driver extends \Core\Database_Driver{}
+    abstract class Database_Result extends \Core\Database_Result{}
+    abstract class Database_Transaction extends \Core\Database_Transaction{}
+    class Database_Expression extends \Core\Database_Expression{}
+    class Database_Driver_MySQLI_Result extends \Core\Database_Driver_MySQLI_Result{}
+    class Database_Driver_MySQL_Result extends \Core\Database_Driver_MySQL_Result{}
 
     class File extends \Core\File{}
     class Form extends \Core\Form{}
@@ -29,11 +35,25 @@ namespace
     class Member extends \Core\Member{}
     class Model extends \Core\Model{}
 
+    abstract class OOP_ORM extends \Core\OOP_ORM{}
+
+    class OOP_ORM_Data extends \Core\OOP_ORM_Data{}
+    class OOP_ORM_Parse extends \Core\OOP_ORM_Parse{}
+    class OOP_ORM_Result extends \Core\OOP_ORM_Result{}
+    class OOP_ORM_Index extends \Core\OOP_ORM_Index{}
+
+    class OOP_ORM_Finder_DB extends \Core\OOP_ORM_Finder_DB{}
+    class OOP_ORM_Finder_HttpGet extends \Core\OOP_ORM_Finder_HttpGet{}
+
     class Pagination extends \Core\Pagination{}
     class Permission extends \Core\Permission{}
     class PinYin extends \Core\PinYin{}
 
+    class QueryBuilder extends \Core\QueryBuilder{}
+
     class Session extends \Core\Session{}
+    class Session_Cache extends \Core\Session_Cache{}
+    class Session_Default extends \Core\Session_Default{}
     class Storage extends \Core\Storage{}
 
     class Text extends \Core\Text{}
@@ -41,70 +61,17 @@ namespace
     class utf8 extends \Core\utf8{}
 
     class View extends \Core\View{}
-}
 
-namespace Cache
-{
-    class Database extends \Core\Cache\Database{}
-    class File extends \Core\Cache\File{}
-    class Memcache extends \Core\Cache\Memcache{}
-}
+    class Cache_Database extends \Core\Cache_Database{}
+    class Cache_File extends \Core\Cache_File{}
+    class Cache_Memcache extends \Core\Cache_Memcache{}
 
+    class Controller_File extends \Core\Controller_File{}
 
-namespace Controller
-{
-    class File extends \Core\Controller\File{}
-}
+    class HttpGet_Result extends \Core\HttpGet_Result{}
 
-
-namespace Database
-{
-    class Driver extends \Core\Database\Driver{}
-    class Result extends \Core\Database\Result{}
-    class Transaction extends \Core\Database\Transaction{}
-    class QueryBuilder extends \Core\Database\QueryBuilder{}
-    class Expression extends \Core\Database\Expression{}
-}
-
-namespace Database\Driver\MySQLI
-{
-    class Result extends \Core\Database\Driver\MySQLI\Result{}
-}
-
-namespace HttpGet
-{
-    class Result extends \Core\HttpGet\Result{}
-}
-
-namespace HttpGet\Driver
-{
-    class Curl extends \Core\HttpGet\Driver\Curl{}
-    class Fsock extends \Core\HttpGet\Driver\Fsock{}
-}
-
-namespace OOP
-{
-    class ORM extends \Core\OOP\ORM{}
-}
-
-namespace OOP\ORM
-{
-    class Data extends \Core\OOP\ORM\Data{}
-    class Parse extends \Core\OOP\ORM\Parse{}
-    class Result extends \Core\OOP\ORM\Result{}
-    class Index extends \Core\OOP\ORM\Index{}
-}
-
-namespace OOP\ORM\Finder
-{
-    class DB extends \Core\OOP\ORM\Finder\DB{}
-    class HttpGet extends \Core\OOP\ORM\Finder\HttpGet{}
-}
-
-namespace Session
-{
-    class Cache extends \Core\Session\Cache{}
-    class Default_Driver extends \Core\Session\Default_Driver{}
+    class HttpGet_Driver_Curl extends \Core\HttpGet_Driver_Curl{}
+    class HttpGet_Driver_Fsock extends \Core\HttpGet_Driver_Fsock{}
 }
 
 
