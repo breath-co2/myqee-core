@@ -7,11 +7,11 @@ namespace Core;
  * @author     jonwang(jonwang@myqee.com)
  * @category   Core
  * @package    Classes
- * @subpackage HttpGet
+ * @subpackage HttpClient
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class HttpGet_Driver_Curl
+class HttpClient_Driver_Curl
 {
 
     protected $http_data = array();
@@ -44,7 +44,7 @@ class HttpGet_Driver_Curl
      * 设置$cookie
      *
      * @param $agent
-     * @return \HttpGet\Driver\Curl
+     * @return \HttpClient\Driver\Curl
      */
     public function set_agent($agent)
     {
@@ -57,7 +57,7 @@ class HttpGet_Driver_Curl
      * 设置$cookie
      *
      * @param string $cookie
-     * @return \HttpGet\Driver\Curl
+     * @return \HttpClient\Driver\Curl
      */
     public function set_cookies($cookies)
     {
@@ -69,7 +69,7 @@ class HttpGet_Driver_Curl
      * 设置$referer
      *
      * @param string $referer
-     * @return \HttpGet\Driver\Curl
+     * @return \HttpClient\Driver\Curl
      */
     public function set_referer($referer)
     {
@@ -81,7 +81,7 @@ class HttpGet_Driver_Curl
      * 设置IP
      *
      * @param string $ip
-     * @return \HttpGet\Driver\Curl
+     * @return \HttpClient\Driver\Curl
      */
     public function set_ip($ip)
     {
@@ -94,7 +94,7 @@ class HttpGet_Driver_Curl
      *
      * @param string $key
      * @param value $value
-     * @return \HttpGet\Driver\Curl
+     * @return \HttpClient\Driver\Curl
      */
     public function set_option($key, $value)
     {
@@ -113,7 +113,7 @@ class HttpGet_Driver_Curl
      * 设置多个列队默认排队数上限
      *
      * @param int $num
-     * @return HttpGet_Driver_Curl
+     * @return HttpClient_Driver_Curl
      */
     public function set_multi_exec_num($num=0)
     {

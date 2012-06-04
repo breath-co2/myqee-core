@@ -7,11 +7,11 @@ namespace Core;
  * @author     jonwang(jonwang@myqee.com)
  * @category   Core
  * @package    Classes
- * @subpackage HttpGet
+ * @subpackage HttpClient
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class HttpGet_Result
+class HttpClient_Result
 {
 
     protected $data;

@@ -7,11 +7,11 @@ namespace Core;
  * @author     jonwang(jonwang@myqee.com)
  * @category   Core
  * @package    Classes
- * @subpackage HttpGet
+ * @subpackage HttpClient
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class HttpGet_Driver_Fsock extends \Snoopy
+class HttpClient_Driver_Fsock extends \Snoopy
 {
 
     protected $http_data = array();
@@ -20,7 +20,7 @@ class HttpGet_Driver_Fsock extends \Snoopy
      * 设置$cookie
      *
      * @param $agent
-     * @return HttpGet_Driver_Fsock
+     * @return HttpClient_Driver_Fsock
      */
     public function set_agent($agent)
     {
@@ -33,7 +33,7 @@ class HttpGet_Driver_Fsock extends \Snoopy
      * 设置$cookie
      *
      * @param string $cookie
-     * @return HttpGet_Driver_Fsock
+     * @return HttpClient_Driver_Fsock
      */
     public function set_cookies($cookies)
     {
@@ -46,7 +46,7 @@ class HttpGet_Driver_Fsock extends \Snoopy
      * 设置$referer
      *
      * @param string $referer
-     * @return \HttpGet\Driver\Fsock
+     * @return \HttpClient\Driver\Fsock
      */
     public function set_referer($referer)
     {
@@ -59,7 +59,7 @@ class HttpGet_Driver_Fsock extends \Snoopy
      * 设置IP
      *
      * @param string $ip
-     * @return \HttpGet\Driver\Fsock
+     * @return \HttpClient\Driver\Fsock
      */
     public function set_ip($ip)
     {

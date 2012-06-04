@@ -11,7 +11,7 @@ namespace Core;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class OOP_ORM_Finder_HttpGet extends \OOP_ORM
+class OOP_ORM_Finder_HTTP extends \OOP_ORM
 {
 
     /**
@@ -22,7 +22,7 @@ class OOP_ORM_Finder_HttpGet extends \OOP_ORM
     protected $api_url;
 
     /**
-     * @var \HttpGet
+     * @var \HttpClient
      */
     protected $_driver = null;
 
@@ -64,12 +64,12 @@ class OOP_ORM_Finder_HttpGet extends \OOP_ORM
     }
 
     /**
-     * HttpGet对象
-     * @return HttpGet
+     * HttpClient对象
+     * @return HttpClient
      */
     public function driver()
     {
-        if ( null === $this->_driver ) $this->_driver = \HttpGet::factory();
+        if ( null === $this->_driver ) $this->_driver = \HttpClient::factory();
         return $this->_driver;
     }
 }

@@ -10,7 +10,7 @@ namespace Core;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class HttpHost
+class HttpCall
 {
     protected $group;
 
@@ -36,18 +36,18 @@ class HttpHost
      * 返回HttpServer实例化对象
      *
      * @param string $group 分组，不传则为默认default
-     * @return \HttpHost
+     * @return \HttpCall
      */
     public function factory($group = null)
     {
-        return new \HttpHost($group);
+        return new \HttpCall($group);
     }
 
     /**
      * 调用系统内部请求
      *
-     * \HttpHost::sync_exec('uri');
-     * \HttpHost::sync_exec('test/abc','arg1','arg2','arg3');
+     * \HttpCall::sync_exec('uri');
+     * \HttpCall::sync_exec('test/abc','arg1','arg2','arg3');
      *
      * @param string $uri
      * @param mixed $arg1
@@ -65,8 +65,8 @@ class HttpHost
     /**
      * 调用系统内部请求主服务器
      *
-     * \HttpHost::master_exec('uri');
-     * \HttpHost::master_exec('test/abc','arg1','arg2','arg3');
+     * \HttpCall::master_exec('uri');
+     * \HttpCall::master_exec('test/abc','arg1','arg2','arg3');
      *
      * @param string $uri
      * @param mixed $arg1

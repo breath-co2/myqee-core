@@ -25,9 +25,9 @@ namespace
     class Form extends \Core\Form{}
 
     class html extends \Core\html{}
-    class HttpGet extends \Core\HttpGet{}
+    class HttpClient extends \Core\HttpClient{}
     class HttpIO extends \Core\HttpIO{}
-    class HttpHost extends \Core\HttpHost{}
+    class HttpCall extends \Core\HttpCall{}
 
     class I18n extends \Core\I18n{}
     class IpSource extends \Core\IpSource{}
@@ -43,7 +43,7 @@ namespace
     class OOP_ORM_Index extends \Core\OOP_ORM_Index{}
 
     class OOP_ORM_Finder_DB extends \Core\OOP_ORM_Finder_DB{}
-    class OOP_ORM_Finder_HttpGet extends \Core\OOP_ORM_Finder_HttpGet{}
+    class OOP_ORM_Finder_HTTP extends \Core\OOP_ORM_Finder_HTTP{}
 
     class Pagination extends \Core\Pagination{}
     class Permission extends \Core\Permission{}
@@ -68,10 +68,10 @@ namespace
 
     class Controller_File extends \Core\Controller_File{}
 
-    class HttpGet_Result extends \Core\HttpGet_Result{}
+    class HttpClient_Result extends \Core\HttpClient_Result{}
 
-    class HttpGet_Driver_Curl extends \Core\HttpGet_Driver_Curl{}
-    class HttpGet_Driver_Fsock extends \Core\HttpGet_Driver_Fsock{}
+    class HttpClient_Driver_Curl extends \Core\HttpClient_Driver_Curl{}
+    class HttpClient_Driver_Fsock extends \Core\HttpClient_Driver_Fsock{}
 }
 
 

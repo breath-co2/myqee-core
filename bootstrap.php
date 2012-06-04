@@ -1175,7 +1175,7 @@ final class Bootstrap
     private static function setup_by_url( & $request_mode )
     {
         # 处理base_url
-        if (null === Bootstrap::$base_url && isset($_SERVER["SCRIPT_NAME"]) && $_SERVER["SCRIPT_NAME"])
+        if (null === self::$base_url && isset($_SERVER["SCRIPT_NAME"]) && $_SERVER["SCRIPT_NAME"])
         {
             $base_url_len = strrpos($_SERVER["SCRIPT_NAME"], '/');
             if ($base_url_len)
@@ -1190,7 +1190,7 @@ final class Bootstrap
 
                 if (strtolower(substr($_SERVER['REQUEST_URI'], 0, $base_url_len)) == strtolower($base_url))
                 {
-                    Bootstrap::$base_url = $base_url;
+                    self::$base_url = $base_url;
                 }
             }
         }
@@ -1209,9 +1209,9 @@ final class Bootstrap
             {
                 $request_uri = $_SERVER['REQUEST_URI'];
 
-                if (Bootstrap::$base_url)
+                if (self::$base_url)
                 {
-                    $request_uri = substr($request_uri, strlen(Bootstrap::$base_url));
+                    $request_uri = substr($request_uri, strlen(self::$base_url));
                 }
                 // 移除查询参数
                 list($pathinfo) = explode('?', $request_uri, 2);
@@ -1231,7 +1231,7 @@ final class Bootstrap
         }
 
         # 过滤pathinfo传入进来的服务器默认页
-        if (false !== $pathinfo && ($indexpagelen = strlen(Bootstrap::$config['core']['server_index_page'])) && substr($pathinfo, -1 - $indexpagelen) == '/' . Bootstrap::$config['core']['server_index_page'])
+        if (false !== $pathinfo && ($indexpagelen = strlen(self::$config['core']['server_index_page'])) && substr($pathinfo, -1 - $indexpagelen) == '/' . self::$config['core']['server_index_page'])
         {
             $pathinfo = substr($pathinfo, 0, -$indexpagelen);
         }
@@ -1242,7 +1242,7 @@ final class Bootstrap
             $_SERVER["PATH_INFO"] = $pathinfo;
         }
 
-        Bootstrap::$path_info = $pathinfo;
+        self::$path_info = $pathinfo;
 
 
         $get_path_info = function (& $url)
@@ -1386,8 +1386,8 @@ final class Bootstrap
             if (isset(self::$config['core']['url']['admin']) && self::$config['core']['url']['admin'] && ($path_info = $get_path_info(self::$config['core']['url']['admin'])) != false)
             {
                 self::$path_info = $path_info;
-                self::$base_url = self::$config['core']['url']['admin'];
-                $request_mode = 'admin';
+                self::$base_url  = self::$config['core']['url']['admin'];
+                $request_mode    = 'admin';
             }
             else
             {

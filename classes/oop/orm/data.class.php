@@ -1008,7 +1008,7 @@ class OOP_ORM_Data
     /**
      * 获取当前ORM
      *
-     * @return \OOP_ORM_Finder\DB|\OOP_ORM_Finder\Cache|\OOP_ORM_Finder\HttpGet
+     * @return \OOP_ORM_Finder\DB|\OOP_ORM_Finder\Cache|\OOP_ORM_Finder\HttpClient
      */
     public function orm()
     {

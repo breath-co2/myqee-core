@@ -870,7 +870,7 @@ class File
             $action = 'sync_exec';
         }
 
-        $rs = \call_user_func_array(array(\HttpHost::factory($storage), $action), $param_arr);
+        $rs = \call_user_func_array(array(\HttpCall::factory($storage), $action), $param_arr);
 
         if ( \is_array($rs) )
         {

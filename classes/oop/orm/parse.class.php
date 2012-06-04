@@ -515,7 +515,7 @@ abstract class OOP_ORM_Parse
     }
 
     /**
-     * 获取HttpGet配置类型的数据
+     * 获取HttpClient配置类型的数据
      *
      * @param array $config
      * @return array
@@ -532,11 +532,11 @@ abstract class OOP_ORM_Parse
         }
         if ( isset($config['type']) )
         {
-            $httpget = \HttpGet::factory($config['type']);
+            $httpget = \HttpClient::factory($config['type']);
         }
         else
         {
-            $httpget = \HttpGet::factory();
+            $httpget = \HttpClient::factory();
         }
 
         if ($method == 'post')

@@ -7,11 +7,11 @@ namespace Core;
  * @author     jonwang(jonwang@myqee.com)
  * @category   Core
  * @package    Classes
- * @subpackage HttpGet
+ * @subpackage HttpClient
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class HttpGet
+class HttpClient
 {
 
     /**
@@ -45,7 +45,7 @@ class HttpGet
     /**
      * 驱动
      *
-     * @var \HttpGet_Driver_Curl
+     * @var \HttpClient_Driver_Curl
      */
     protected $driver;
 
@@ -67,18 +67,18 @@ class HttpGet
      * 获取实例化对象
      *
      * @param string $type
-     * @return \HttpGet
+     * @return \HttpClient
      */
     public static function factory($type = null)
     {
-        return new \HttpGet($type);
+        return new \HttpClient($type);
     }
 
     /**
      * 设置$agent
      *
      * @param string $agent
-     * @return \HttpGet
+     * @return \HttpClient
      */
     public function set_agent($agent = null)
     {
@@ -92,7 +92,7 @@ class HttpGet
      * 设置$cookie
      *
      * @param string $cookie
-     * @return \HttpGet
+     * @return \HttpClient
      */
     public function set_cookies($cookies)
     {
@@ -105,7 +105,7 @@ class HttpGet
      * 设置$referer
      *
      * @param string $referer
-     * @return \HttpGet
+     * @return \HttpClient
      */
     public function set_referer($referer)
     {
@@ -118,7 +118,7 @@ class HttpGet
      * 设置请求页面的IP地址
      *
      * @param string $ip
-     * @return \HttpGet
+     * @return \HttpClient
      */
     public function set_ip($ip)
     {
@@ -132,7 +132,7 @@ class HttpGet
      *
      * @param $key
      * @param $value
-     * @return \HttpGet
+     * @return \HttpClient
      */
     public function set_option($key, $value)
     {
@@ -150,7 +150,7 @@ class HttpGet
      * @param array $data
      * @param $timeout
      * @return string
-     * @return \HttpGet_Result 但个URL返回当然内容对象
+     * @return \HttpClient_Result 但个URL返回当然内容对象
      */
     public function get($url, $timeout = 10)
     {
@@ -163,12 +163,12 @@ class HttpGet
             $result = new \Arr();
             foreach ( $data as $key => $item )
             {
-                $result[$key] = new \HttpGet_Result($item);
+                $result[$key] = new \HttpClient_Result($item);
             }
         }
         else
         {
-            $result = new \HttpGet_Result($data);
+            $result = new \HttpClient_Result($data);
         }
 
         return $result;
@@ -179,7 +179,7 @@ class HttpGet
      * @param $url
      * @param $data
      * @param $timeout
-     * @return \HttpGet_Result
+     * @return \HttpClient_Result
      */
     public function post($url, $data, $timeout = 30)
     {
@@ -189,7 +189,7 @@ class HttpGet
         $data = $this->driver()->get_resut_data();
         $data['total_time'] = $time;
 
-        return new \HttpGet_Result($data);
+        return new \HttpClient_Result($data);
     }
 
     public function __call($method, $params)
@@ -203,13 +203,13 @@ class HttpGet
     /**
      * 获取当前驱动
      *
-     * @return \HttpGet_Driver_Curl
+     * @return \HttpClient_Driver_Curl
      */
     public function driver()
     {
         if ( null === $this->driver )
         {
-            $f = '\\HttpGet_Driver_' . $this->type;
+            $f = '\\HttpClient_Driver_' . $this->type;
             $this->driver = new $f();
         }
 
