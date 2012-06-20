@@ -64,7 +64,7 @@ class Session_Cache
 
         $_SESSION = array();
 
-        $sid = \Cookie::get($this->session_name);
+        $sid = \Core::Cookie()->get($this->session_name);
         if ( ! $sid || ! $this->_check_session_id($sid) )
         {
             $sid = \md5(\TIME . '_^_^_' . \rand(1000, 99999999) . \HttpIO::IP);
@@ -113,14 +113,14 @@ class Session_Cache
      */
     public function destroy()
     {
-        $sid = \Cookie::get($this->session_name);
+        $sid = \Core::Cookie()->get($this->session_name);
         if ( $sid && count($_SESSION) )
         {
             $this->driver()->delete($sid);
 
             $_SESSION = array();
 
-            \Cookie::delete($this->session_name,'/');
+            \Core::Cookie()->delete($this->session_name,'/');
         }
     }
 

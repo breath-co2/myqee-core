@@ -74,7 +74,7 @@ class Session_Default
             $_SESSION = array();
 
             // Delete the session cookie
-            \Cookie::delete($name,'/');
+            \Core::cookie()->delete($name,'/');
         }
     }
 
