@@ -136,7 +136,8 @@ class OOP_ORM_Data
     /**
      * 记录id数据缓存
      *
-     *   array(
+     *   array
+     *   (
      * 	     'classname' => array(1=>...,2=>...),
      * 	     'classname2' => array(1=>...,2=>...),
      *   )
@@ -1008,7 +1009,8 @@ class OOP_ORM_Data
     /**
      * 获取当前ORM
      *
-     * @return \OOP_ORM_Finder\DB|\OOP_ORM_Finder\Cache|\OOP_ORM_Finder\HttpClient
+     * @return \OOP_ORM_Finder_DB
+     * @return \OOP_ORM_Finder_REST
      */
     public function orm()
     {
@@ -1051,6 +1053,7 @@ class OOP_ORM_Data
             }
             $this->_orm_object = new $orm_class_name();
         }
+
         return $this->_orm_object;
     }
 
@@ -1270,7 +1273,7 @@ class OOP_ORM_Data
     /**
      * 用于给ORM回调设置ORM对象
      */
-    protected function __orm_callback_set_orm_(\OOP\ORM $orm)
+    protected function __orm_callback_set_orm_(\OOP_ORM $orm)
     {
         $this->_orm_object = $orm;
     }

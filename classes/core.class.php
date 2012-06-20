@@ -180,7 +180,7 @@ abstract class Core
 
         if ( \IS_DEBUG && isset($_REQUEST['debug']) && \class_exists('\\Debug_Profiler',true) )
         {
-            \Debug\Profiler::setup();
+            \Debug_Profiler::setup();
         }
 
         if (!\IS_CLI)

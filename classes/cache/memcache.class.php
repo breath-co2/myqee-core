@@ -128,7 +128,12 @@ class Cache_Memcache
 
                 foreach ( $this->servers as $server )
                 {
-                    $server += array('host' => '127.0.0.1', 'port' => 11211, 'persistent' => true);
+                    $server += array
+                    (
+                        'host' => '127.0.0.1',
+                        'port' => 11211,
+                        'persistent' => true
+                    );
 
                     static::$memcaches[$config_name]->addServer($server['host'], $server['port'], (bool)$server['persistent'], $server['weight'], 1, 15, true, $failure_addserver);
 
@@ -306,7 +311,7 @@ class Cache_Memcache
         {
             return true;
         }
-        elseif ( $this->get($key) === null && $this->set($key, $offset, $lifetime) )
+        elseif ( null===$this->get($key) && $this->set($key, $offset, $lifetime) )
         {
             return true;
         }

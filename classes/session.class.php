@@ -31,7 +31,7 @@ class Session
 
     /**
      * Session驱动
-     * @var Session_Driver_Default
+     * @var \Session_Default
      */
     protected $driver;
 
@@ -169,19 +169,20 @@ class Session
     public function set_member(\Member $member)
     {
         static::$member = $member;
+
         if ( $member->id>0 )
         {
             # 设置用户数据
-            $_SESSION['member_id'] = $member->id;
+            $_SESSION['member_id']       = $member->id;
             $_SESSION['member_password'] = $member->password;
-            $member_data = $member->get_field_data();
-            $_SESSION['member'] = $member_data;
+            $_SESSION['member']          = $member->get_field_data();
         }
         else
         {
             # 游客数据则清空
             unset($_SESSION['member_id']);
         }
+
         return $this;
     }
 
@@ -247,10 +248,8 @@ class Session
             if ( static::$member )
             {
                 # 设置用户数据
-                $member_data = static::$member->get_field_data();
-
-                $_SESSION['member'] = $member_data;
-                $_SESSION['member_id'] = static::$member->id;
+                $_SESSION['member']          = static::$member->get_field_data();
+                $_SESSION['member_id']       = static::$member->id;
                 $_SESSION['member_password'] = static::$member->password;
             }
 
@@ -261,7 +260,7 @@ class Session
     /**
      * 设置一个session数据
      *
-     * @param   string|array  key, or array of values
+     * @param   string|array key, or array of values
      * @param   mixed		 value (if keys is not an array)
      * @return  void
      */
@@ -286,7 +285,7 @@ class Session
     /**
      * 设置一个Session闪存数据
      *
-     * @param   string|array  key, or array of values
+     * @param   string|array key, or array of values
      * @param   mixed		 value (if keys is not an array)
      * @return  void
      */
@@ -355,9 +354,9 @@ class Session
     /**
      * Get a variable. Access to sub-arrays is supported with key.subkey.
      *
-     * @param   string  variable key
-     * @param   mixed   default value returned if variable does not exist
-     * @return  mixed   Variable data if key specified, otherwise array containing all session data.
+     * @param  string variable key
+     * @param  mixed  default value returned if variable does not exist
+     * @return mixed  Variable data if key specified, otherwise array containing all session data.
      */
     public function get($key = false, $default = false)
     {
@@ -371,9 +370,9 @@ class Session
     /**
      * Get a variable, and delete it.
      *
-     * @param   string  variable key
-     * @param   mixed   default value returned if variable does not exist
-     * @return  mixed
+     * @param  string variable key
+     * @param  mixed  default value returned if variable does not exist
+     * @return mixed
      */
     public function get_once($key, $default = false)
     {
@@ -386,8 +385,8 @@ class Session
     /**
      * Delete one or more variables.
      *
-     * @param   string  variable key(s)
-     * @return  void
+     * @param  string variable key(s)
+     * @return void
      */
     public function delete()
     {

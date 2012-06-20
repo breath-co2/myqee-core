@@ -84,6 +84,7 @@ class Model
     protected function get_cache_data()
     {
         $key = $this->_get_cache_key(new \Exception(), 1);
+
         if (true===$this->_clear_cache_data_mode)
         {
             # 清除模式
@@ -115,12 +116,12 @@ class Model
      * @param mixed $arg3
      * @param mixed $arg...
      */
-    public function clear_cache_data($fun,$arg1='',$arg2='')
+    public function clear_cache_data($fun,$arg1=null,$arg2=null)
     {
         $args = \func_get_args();
         \array_shift($args);
         $this->_clear_cache_data_mode = true;
-        \call_user_func_array($fun, $this, $args);
+        \call_user_func_array(array($this,$fun) , $args);
         $this->_clear_cache_data_mode = false;
     }
 
@@ -134,10 +135,11 @@ class Model
     protected function _get_cache_key(\Exception $e, $trace_offset = 0)
     {
         $trace_offset = (int)$trace_offset;
-        if ( ! ($trace_offset >= 0) )
+        if ( !($trace_offset>=0) )
         {
             $trace_offset = 0;
         }
+
         $trace = $e->getTrace();
         if ( $trace[$trace_offset]['args'] )
         {
@@ -170,7 +172,8 @@ class Model
                 }
             }
         }
-        $data = array(
+        $data = array
+        (
             $trace[$trace_offset]['class'],
             $trace[$trace_offset]['function'],
             $trace[$trace_offset]['type'],
