@@ -1,2 +1,2 @@
 <?php
-include dirname(__FILE__).'/../captcha.controller.php';
+include __DIR__.'/../captcha.controller.php';

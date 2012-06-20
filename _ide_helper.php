@@ -3,6 +3,7 @@ namespace
 {
     exit;
 
+    class Anonymous extends \Core\Anonymous{}
     class App extends \Core\App{}
     class Arr extends \Core\Arr{}
     class Auth extends \Core\Auth{}
@@ -43,7 +44,7 @@ namespace
     class OOP_ORM_Index extends \Core\OOP_ORM_Index{}
 
     class OOP_ORM_Finder_DB extends \Core\OOP_ORM_Finder_DB{}
-    class OOP_ORM_Finder_HTTP extends \Core\OOP_ORM_Finder_HTTP{}
+    class OOP_ORM_Finder_REST extends \Core\OOP_ORM_Finder_REST{}
 
     class Pagination extends \Core\Pagination{}
     class Permission extends \Core\Permission{}
@@ -74,5 +75,39 @@ namespace
     class HttpClient_Driver_Fsock extends \Core\HttpClient_Driver_Fsock{}
 }
 
+namespace AnonymousClass
+{
+    class Cookie
+    {
+        /**
+         * 获取一个Cookie
+         *
+         * @param string $name
+         */
+        public static function get($name){}
 
+        /**
+         * 创建cookie 详细请参考setcookie函数参数
+         *
+         * @param string/array $name
+         * @param string $value
+         * @param number $expire
+         * @param string $path
+         * @param string $domain
+         * @param boolean $secure
+         * @param boolean $httponly
+         * @return boolean true/false
+         */
+        public static function set($name, $value = null, $expire = null, $path = null, $domain = null, $secure = null, $httponly = null){}
 
+        /**
+         * 删除cookie
+         *
+         * @param string $name cookie名称
+         * @param string $path cookie路径
+         * @param string $domain cookie作用域
+         * @return boolean true/false
+         */
+        public static function delete($name, $path = null, $domain = null){}
+    }
+}

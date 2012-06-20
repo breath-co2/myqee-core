@@ -182,7 +182,7 @@ class Database_Driver_MySQL extends \Database_Driver
                         $tmplink = \mysql_pconnect($hostname . ($port && $port != 3306 ? ':' . $port : ''), $username, $password);
                     }
 
-                    \Core::debug()->info(' mysql '.$hostname.' connection time:' . (\microtime(true) - $time));
+                    \Core::debug()->info('mysql '.$hostname.' connection time:' . (\microtime(true) - $time));
 
                     # 连接ID
                     $this->_connection_ids[$this->_connection_type] = $_connection_id;
@@ -487,7 +487,7 @@ class Database_Driver_MySQL extends \Database_Driver
             if ( $is_sql_debug )
             {
                 $host = $this->_get_hostname_by_connection_hash($this->connection_id());
-                $benchmark = \Core::debug()->profiler('sql')->start('Database', $host['username'] . '@' . $host['hostname'] . ($host['port'] && $host['port'] != '3306' ? ':' . $host['port'] : ''));
+                $benchmark = \Core::debug()->profiler('sql')->start('Database', 'mysqli://' . ($host['username']?$host['username'].'@':'') . $host['hostname'] . ($host['port'] && $host['port'] != '3306' ? ':' . $host['port'] : ''));
             }
         }
 

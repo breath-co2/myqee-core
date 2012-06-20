@@ -2,7 +2,7 @@
 namespace Core;
 
 /**
- * ORM WGET核心类
+ * ORM REST核心类
  *
  * @author     jonwang(jonwang@myqee.com)
  * @category   Core
@@ -11,7 +11,7 @@ namespace Core;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class OOP_ORM_Finder_HTTP extends \OOP_ORM
+class OOP_ORM_Finder_REST extends \OOP_ORM
 {
 
     /**

@@ -89,7 +89,7 @@ abstract class Core
 
                 foreach ( \Bootstrap::$config['core']['debug_open_password'] as $item )
                 {
-                    if ($_COOKIE['_debug_open']==static::get_debug_hash($item))
+                    if ($_COOKIE['_debug_open']==\Bootstrap::get_debug_hash($item))
                     {
                         return true;
                     }
@@ -244,11 +244,13 @@ abstract class Core
     /**
      * 导入指定类库
      *
-     * 导入的格式必须是类似 BigClass/SubClass 的形式，否则会抛出异常，例如: MyQEE/CMS , MyQEE/SAE 等等
+     * 导入的格式必须是类似 com.a.b 的形式，否则会抛出异常，例如: com.myqee.test
+     *
+     *      //导入myqee.test类库
+     *      Bootstrap::import_library('com.myqee.test');
      *
      * @param string $library_name 指定类库
      * @return boolean
-     * @throws \Exception
      */
     public static function import_library($library_name)
     {
@@ -414,7 +416,7 @@ abstract class Core
      */
     public static function find_view($file)
     {
-        return \Bootstrap::find_file('views', $file,'.view.php');
+        return \Bootstrap::find_file('views', $file);
     }
 
     /**
@@ -618,14 +620,6 @@ abstract class Core
             static::show_500($e);
             exit();
         }
-    }
-
-    public static function get_debug_hash($password)
-    {
-        static $config_str = null;
-        if (null===$config_str)$config_str=\var_export(\Bootstrap::$config['core']['debug_open_password'],true);
-
-        return \md5($config_str.'_open$&*@debug'.$password);
     }
 
     public static function error_handler($code, $error, $file = null, $line = null)
@@ -834,6 +828,75 @@ abstract class Core
             static::log('system request hash error','system-request');
             return false;
         }
+    }
+
+    /**
+     * 获取一个cookie对象
+     *
+     * @return \AnonymousClass\Cookie
+     */
+    public static function cookie()
+    {
+        static $cookie = null;
+
+        if (null===$cookie)
+        {
+            $config = (array)Core::config('cookie');
+
+            if ( $config['domain'] )
+            {
+                # 这里对IP+PORT形式的domain需要特殊处理下，经测试，当这种情况下，设置session id的cookie的话会失败，需要把端口去掉
+                if ( \preg_match('#^([0-9]+.[0-9]+.[0-9]+.[0-9]+):[0-9]+$#',$config['domain'],$m) )
+                {
+                    $config['domain'] = $m[1];    //只保留IP
+                }
+            }
+
+            // 新建一个匿名对象
+            $cookie = new \Anonymous();
+
+            $cookie->get = function($name=null) use ($config)
+            {
+                if ( isset($config['prefix']) && $config['prefix'] ) $name = $config['prefix'] . $name;
+
+                if ( isset($_COOKIE[$name]) )
+                {
+                    return $_COOKIE[$name];
+                }
+                else
+                {
+                    return null;
+                }
+            };
+
+            $cookie->set = function ($name, $value = null, $expire = null, $path = null, $domain = null, $secure = null, $httponly = null) use ($config)
+            {
+                if ( \headers_sent() ) return false;
+
+                \is_array($name) && \extract($name, \EXTR_OVERWRITE);
+
+                foreach ( array('value', 'expire', 'domain', 'path', 'secure', 'httponly', 'prefix') as $item )
+                {
+                    if ( $$item === null && isset($config[$item]) )
+                    {
+                        $$item = $config[$item];
+                    }
+                }
+
+                $config['prefix'] && $name = $config['prefix'] . $name;
+
+                $expire = ($expire == 0) ? 0 : $_SERVER['REQUEST_TIME'] + (int)$expire;
+
+                return \setcookie($name, $value, $expire, $path, $domain, $secure, $httponly);
+            };
+
+            $cookie->delete = function ($name, $path = null, $domain = null) use ($cookie)
+            {
+                return $cookie->set($name, '', -864000, $path, $domain, false, false);
+            };
+        }
+
+        return $cookie;
     }
 }
 

@@ -19,12 +19,12 @@ class Controller_OpenDebugger extends \Controller
 
     public function before()
     {
-        $this->password = Core::config( 'core.debug_open_password' );
+        $this->password = \Core::config( 'core.debug_open_password' );
     }
 
     public function action_default()
     {
-        if ( Core::is_online_debug() )
+        if ( \IS_DEBUG )
         {
             $this->nodebug();
         }
@@ -39,20 +39,20 @@ class Controller_OpenDebugger extends \Controller
         $debug_hash = $_POST['debug_hash'];
         if ( in_array( $debug_hash, $this->password ) )
         {
-            Core::cookie()->set( '_debug_open', Core::get_debug_hash( $debug_hash ), null, '/' );
+            \Core::cookie()->set( '_debug_open', \Bootstrap::get_debug_hash( $debug_hash ), null, '/' );
         }
         $this->redirect( '/opendebugger' );
     }
 
     public function action_logout()
     {
-        Core::cookie()->delete( '_debug_open', '/' );
+        \Core::cookie()->delete( '_debug_open', '/' );
         $this->redirect( '/opendebugger' );
     }
 
     protected function debug()
     {
-        $url = Core::url()->site( '/opendebugger/login' );
+        $url = \Core::url()->site( '/opendebugger/login' );
         echo <<<EOF
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh-CN" lang="zh-CN">
@@ -75,7 +75,7 @@ EOF;
 
     protected function nodebug()
     {
-        $url = Core::url()->site( '/opendebugger/logout' );
+        $url = \Core::url()->site( '/opendebugger/logout' );
         echo <<<EOF
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh-CN" lang="zh-CN">

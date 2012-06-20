@@ -490,7 +490,7 @@ class Database_Driver_MySQLI extends \Database_Driver
             if ( $is_sql_debug )
             {
                 $host = $this->_get_hostname_by_connection_hash($this->connection_id());
-                $benchmark = \Core::debug()->profiler('sql')->start('Database', $host['username'] . '@' . $host['hostname'] . ($host['port'] && $host['port'] != '3306' ? ':' . $host['port'] : ''));
+                $benchmark = \Core::debug()->profiler('sql')->start('Database', 'mysqli://' . ($host['username']?$host['username'].'@':'') . $host['hostname'] . ($host['port'] && $host['port'] != '3306' ? ':' . $host['port'] : ''));
             }
         }
 
@@ -546,7 +546,7 @@ class Database_Driver_MySQLI extends \Database_Driver
                 {
                     $re = $connection->query('EXPLAIN ' . $sql);
                     $i = 0;
-                    while ( true == ($row = $re->fetch_array(MYSQLI_NUM)) )
+                    while ( true == ($row = $re->fetch_array(\MYSQLI_NUM)) )
                     {
                         $data[$i]['select_type']      = (string)$row[1];
                         $data[$i]['table']            = (string)$row[2];

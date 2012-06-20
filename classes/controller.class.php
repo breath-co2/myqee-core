@@ -42,6 +42,8 @@ class Controller
      */
     public $ids = array();
 
+    protected static $message_view = 'show_message';
+
     /**
      * 控制器实例化化对象
      *
@@ -96,7 +98,7 @@ class Controller
      * @param array $data
      * @param int $code
      */
-    protected static function show_message( $msg , $code=0 , $data = array() )
+    protected static function show_message( $msg , $code = 0 , $data = array() )
     {
         if (\IS_SYSTEM_MODE)
         {
@@ -105,7 +107,7 @@ class Controller
         }
         elseif (isset($_SERVER["HTTP_X_PJAX"]) && $_SERVER["HTTP_X_PJAX"]=='true')
         {
-            echo $msg;
+            \View::factory(static::$message_view,array('msg'=>$msg,'data'=>$data,'code'=>$code))->render();
         }
         elseif (\HttpIO::IS_AJAX)
         {
@@ -116,12 +118,15 @@ class Controller
                 'code' => $code,
                 'data' => $data,
             );
+
+            @\header('Content-Type: application/json');
+
             echo \json_encode($value);
         }
         else
         {
-            # 输出消息
-            echo $msg;
+            # 输出内容
+            \View::factory(static::$message_view,array('msg'=>$msg,'data'=>$data,'code'=>$code))->render();
 
             # 获取当前实例化控制器对象
             $controller = static::current_controller();

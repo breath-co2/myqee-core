@@ -848,33 +848,70 @@ final class Bootstrap
      * 查找文件
      *
      *   //查找一个视图文件
-     *   self::find_file('views','test',EXT);
+     *   Bootstrap::find_file('views','test',EXT);
      *
      * @param string $dir 目录
      * @param string $file 文件
-     * @param string $ext 后缀 例如：.html
+     * @param string $ext 后缀 例如：.html，不指定(null)的话则自动设置后缀
      * @return string
      */
-    public static function find_file($dir, $file, $ext='')
+    public static function find_file($dir, $file, $ext=null)
     {
         $dir = trim($dir);
-        $file = str_replace(array('/','\\'),DS,trim($file,' /\\'));
+        $file = str_replace(array('/','\\'),DS,trim($file,' /\\.'));
 
-        if (!$ext)
+        // 没有指定后缀
+        if (null===$ext)
         {
-            if ($dir=='views')
+            switch ($dir)
             {
-                $ext = '.view'.EXT;
+                case 'views':
+                    $ext = '.view'.EXT;
+                    break;
+                case 'classes':
+                    $ext = EXT;
+                    break;
+                case 'modles':
+                    $ext = '.modle'.EXT;
+                    break;
+                case 'orm':
+                    $ext = '.orm'.EXT;
+                    break;
+                case 'controllers':
+                    $ext = '.controller'.EXT;
+                    break;
+                case 'i18n':
+                    $ext = '.lang';
+                    break;
+                default:
+                    $ext = '';
+                    break;
             }
         }
+        else if ($ext && $ext[0]!='.')$ext='.'.$ext;
 
-        if ($ext && $ext[0]!='.')$ext='.'.$ext;
+        # 控制器目录比较特殊，不同模式所在文件夹不一样
+        if ('controllers'==$dir)
+        {
+            if (IS_SYSTEM_MODE)
+            {
+                $dir .= DS .'[system]';
+            }
+            else if (IS_CLI)
+            {
+                $dir .= DS .'[shell]';
+            }
+            else if (IS_ADMIN_MODE)
+            {
+                $dir .= DS .'[admin]';
+            }
+        }
 
         foreach (self::$include_path as $path)
         {
             $tmpfile = $path.$dir.DS.$file.$ext;
 
-            if (is_file($tmpfile))
+            if ( is_file($tmpfile) )
             {
                 return $tmpfile;
             }
@@ -884,22 +921,22 @@ final class Bootstrap
     /**
      * 导入指定类库
      *
-     * 导入的格式必须是类似 BigClass/SubClass 的形式，否则会抛出异常，例如: MyQEE/CMS , MyQEE/SAE 等等
+     * 导入的格式必须是类似 com.a.b 的形式，否则会抛出异常，例如: com.myqee.test
+     *
+     *      //导入myqee.test类库
+     *      Bootstrap::import_library('com.myqee.test');
      *
      * @param string $library_name 指定类库
      * @return boolean
-     * @throws Exception
      */
     public static function import_library($library_name)
     {
         if (!$library_name) return false;
 
-        $library_name = strtolower(trim(str_replace('/', '\\', $library_name), ' \\'));
+        $library_name = strtolower(trim($library_name));
 
-        if (!preg_match('#^[a-z_][a-z0-9_]*\\\[a-z_][a-z0-9_]*$#i', $library_name))
-        {
-            throw new Exception('指定的类“'.$library_name.'”不符合规范');
-        }
+        if (substr($library_name,0,4)!='com.')return false;
+        $library_name = str_replace('.', '\\',substr($library_name,4));
 
         $ns = '\\library\\'.$library_name.'\\';
         if ( !isset(self::$include_path[$ns]) )
@@ -960,7 +997,8 @@ final class Bootstrap
     public static function get_debug_hash( $username , $password )
     {
         $config_str = var_export(self::$config['core']['debug_open_password'], true);
-        return md5($config_str . '_open$&*@debug' . $password . '_' . $username );
+
+        return sha1($config_str . '_open$&*@debug' . static::VERSION . $password . '_' . $username );
     }
 
     /**
@@ -1044,7 +1082,8 @@ final class Bootstrap
 
                 if (is_dir($tmpdir))
                 {
-                    $found_path[$tmp_str][] = array(
+                    $found_path[$tmp_str][] = array
+                    (
                         $ns,
                         $tmpdir,
                         ltrim($real_class,'_'),
