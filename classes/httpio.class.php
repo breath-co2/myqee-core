@@ -418,9 +418,9 @@ class HttpIO
      */
     public static function redirect($url, $code = 302)
     {
-        if ( \strpos($url,'://') !== false )
+        if ( \strpos('://',$url) !== false )
         {
-            $url = \Core::url()->site($url);
+            $url = \Core::url($url);
         }
 
         static::$status = $code;
@@ -430,6 +430,33 @@ class HttpIO
         static::send_headers();
 
         exit();
+    }
+
+    /**
+     * 页面输出header缓存
+     *
+     * 0表示不缓存
+     *
+     * @param int $time 缓存时间，单位秒
+     */
+    public static function set_cache_header($time = 86400)
+    {
+        $time = (int)$time;
+
+        if ($time>0)
+        {
+            @\header('Cache-Control: max-age='.$time);
+            @\header('Last-Modified: ' . \date( 'D, d M Y H:i:s \G\M\T' ));
+            @\header('Expires: ' . \date('D, d M Y H:i:s \G\M\T', \TIME + $time));
+            @\header('Pragma: cache');
+        }
+        else
+        {
+            @\header('Cache-Control: private, no-cache, must-revalidate');
+            @\header('Cache-Control: post-check=0, pre-check=0', false);
+            @\header('Pragma: no-cache');
+            @\header("Expires: 0");
+        }
     }
 
     protected static function _key_string($arr, $key)
@@ -475,7 +502,7 @@ class HttpIO
             if ( static::$status != 200 )
             {
                 // HTTP status line
-                \header($protocol . ' ' . static::$status . ' ' . static::$messages[static::$status]);
+                @\header($protocol . ' ' . static::$status . ' ' . static::$messages[static::$status]);
             }
 
             foreach ( static::$headers as $name => $value )
@@ -485,7 +512,7 @@ class HttpIO
                     $value = "{$name}: {$value}";
                 }
 
-                \header($value, true);
+                @\header($value, true);
             }
         }
     }

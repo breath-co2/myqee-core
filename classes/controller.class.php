@@ -74,9 +74,9 @@ class Controller
      * @param array $data
      * @param int $code
      */
-    protected static function show_error( $msg = 'error' )
+    public function show_error( $msg = 'error' , $data = array() )
     {
-        static::show_message($msg , -1);
+        $this->show_message($msg , -1 , $data);
     }
 
     /**
@@ -86,9 +86,9 @@ class Controller
      * @param array $data
      * @param int $code
      */
-    protected static function show_success( $msg = 'success' , $data = array() )
+    public function show_success( $msg = 'success' , $data = array() )
     {
-        static::show_message( $msg , 1 , $data );
+        $this->show_message( $msg , 1 , $data );
     }
 
     /**
@@ -98,7 +98,7 @@ class Controller
      * @param array $data
      * @param int $code
      */
-    protected static function show_message( $msg , $code = 0 , $data = array() )
+    public function show_message( $msg , $code = 0 , $data = array() )
     {
         if (\IS_SYSTEM_MODE)
         {
@@ -147,7 +147,7 @@ class Controller
      *
      * @return \Session
      */
-    protected static function session()
+    public static function session()
     {
         return \Session::instance();
     }
@@ -161,8 +161,20 @@ class Controller
      * @uses    \Core_url::site
      * @uses    \Request::send_headers
      */
-    protected static function redirect($url, $code = 302)
+    public static function redirect($url, $code = 302)
     {
         \HttpIO::redirect($url, $code);
+    }
+
+    /**
+     * 页面输出header缓存
+     *
+     * 0表示不缓存
+     *
+     * @param int $time 缓存时间，单位秒
+     */
+    public static function header_cache($time = 86400)
+    {
+        \HttpIO::set_cache_header($time);
     }
 }

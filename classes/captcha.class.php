@@ -47,7 +47,14 @@ class Captcha
 
     protected static $valid_countname = '_img_captcha_valid_count';
 
-    public static function valid($mycode, $delsession = false)
+    /**
+     * 验证码验证
+     *
+     * @param string $mycode
+     * @param boolean $delsession
+     * @return number
+     */
+    public static function valid($mycode, $delsession = true)
     {
         if (!($code = \Session::instance()->get(static::$sessionname)))
         {
@@ -78,7 +85,7 @@ class Captcha
      * @param   boolean  trigger invalid counter (for internal use only)
      * @return  integer  counter value
      */
-    public static function valid_count($new_count = null, $invalid = false)
+    public static function valid_count($new_count = null)
     {
         // Pick the right session to use
         $session = static::$valid_countname;

@@ -695,7 +695,7 @@ class QueryBuilder
      */
     public static function expr_value($string)
     {
-        return new \Database\Expression($string);
+        return new \Database_Expression($string);
     }
 
 }

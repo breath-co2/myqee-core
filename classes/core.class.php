@@ -104,7 +104,7 @@ abstract class Core
             }
             elseif ( isset(\Bootstrap::$config['core']['local_debug_cfg']) && \Bootstrap::$config['core']['local_debug_cfg'] )
             {
-                if ( \function_exists('get_cfg_var') )
+                if ( \function_exists('\\get_cfg_var') )
                 {
                     $local_debug = \get_cfg_var(\Bootstrap::$config['core']['local_debug_cfg'])?true:false;
                 }
@@ -224,17 +224,31 @@ abstract class Core
      * @param mixed $default 在没有获取到config时返回的值,例如 \Core::config('test','abc'); 时当尝试获取test的config时没有，则返回abc
      * @return mixed
      */
-    public static function config($key = null,$default=null)
+    public static function config( $key = '' , $default = null )
     {
         $key_array = \explode('.', $key);
         $key = \array_shift($key_array);
 
-        if ( !isset(\Bootstrap::$config[$key]) )return $default;
+        if ( !isset(\Bootstrap::$config[$key]) )
+        {
+            if ( $key!='core' && isset(\Bootstrap::$config['core'][$key]) )
+            {
+                $v = \Bootstrap::$config['core'][$key];
+            }
+            else
+            {
+                // 没有任何设置，返回默认值
+                return $default;
+            }
+        }
+        else
+        {
+            $v = \Bootstrap::$config[$key];
+        }
 
-        $v = \Bootstrap::$config[$key];
         foreach ($key_array as $i)
         {
-            if (!isset($v[$i]))return $default;
+            if ( !isset($v[$i]) )return $default;
             $v = $v[$i];
         }
 

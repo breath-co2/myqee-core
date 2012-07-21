@@ -273,13 +273,18 @@ final class Bootstrap
                 include $file;
             };
 
+            self::$config = array
+            (
+                'core'=>array()
+            );
+
             # 读取主配置
-            $include_config_file(self::$config,DIR_SYSTEM.'config'.EXT);
+            $include_config_file( self::$config['core'] , DIR_SYSTEM.'config'.EXT );
 
             # 读取DEBUG配置
-            if ( isset($config['core']['debug_config']) && self::$config['core']['debug_config'] && is_file(self::$config,DIR_SYSTEM.'debug.config'.EXT) )
+            if ( isset(self::$config['core']['debug_config']) && self::$config['core']['debug_config'] && is_file(DIR_SYSTEM.'debug.config'.EXT) )
             {
-                $include_config_file(self::$config,DIR_SYSTEM.'debug.config'.EXT);
+                $include_config_file( self::$config , DIR_SYSTEM.'debug.config'.EXT );
             }
 
             /**
@@ -294,14 +299,14 @@ final class Bootstrap
 
             if (IS_CLI)
             {
-                if (!isset($_SERVER["argv"]))
+                if ( !isset($_SERVER["argv"]) )
                 {
                     exit('Err Argv');
                 }
                 $argv = $_SERVER["argv"];
 
                 //$argv[0]为文件名
-                if (isset($argv[1]) && $argv[1] && isset(self::$config['core']['projects'][$argv[1]]))
+                if ( isset($argv[1]) && $argv[1] && isset(self::$config['core']['projects'][$argv[1]]) )
                 {
                     self::$project = $argv[1];
                 }
@@ -325,7 +330,7 @@ final class Bootstrap
                     header('Content-Type: text/html;charset='.self::$config['core']['charset']);
                 }
 
-                if (IS_SYSTEM_MODE)
+                if ( IS_SYSTEM_MODE )
                 {
                     # 系统内部请求
                     if ( isset($_SERVER['HTTP_X_MYQEE_SYSTEM_DEBUG']) && $_SERVER['HTTP_X_MYQEE_SYSTEM_DEBUG']=='1' )
@@ -958,15 +963,28 @@ final class Bootstrap
                     $appliction = array( '\\' => array_shift(self::$include_path) );
                 }
 
+                $include_file = function ( & $config , $_file_ )
+                {
+                    include $_file_;
+                };
+
+                // 记录Core配置
+                $core_config = self::$config['core'];
+
                 # 加载配置（初始化）文件
-                $config_file = $dir . 'config'.EXT;
+                $config_file = $dir.'config'.EXT;
+
                 if (is_file($config_file))
                 {
-                    $include_file = function (&$config,$_file_)
-                    {
-                        include $_file_;
-                    };
                     $include_file(self::$config , $config_file);
+                    self::$config['core'] = $core_config;            // 避免Core配置被修改
+                }
+
+                # 读取DEBUG配置
+                if ( isset(self::$config['core']['debug_config']) && self::$config['core']['debug_config'] && is_file($dir.'debug.config'.EXT) )
+                {
+                    $include_file(self::$config , $dir.'debug.config'.EXT);
+                    self::$config['core'] = $core_config;
                 }
 
                 # 合并目录
@@ -1347,15 +1365,15 @@ final class Bootstrap
                         $item['admin_url']
                     );
 
-                    foreach ( $item['admin_url'] as $admin_url )
+                    foreach ( $item['admin_url'] as $tmp_url )
                     {
-                        if (preg_match('#^http(s)?\://#i', $admin_url))
+                        if (preg_match('#^http(s)?\://#i', $tmp_url))
                         {
-                            if (($path_info_admin = $get_path_info($admin_url)) != false)
+                            if (($path_info_admin = $get_path_info($tmp_url)) != false)
                             {
                                 self::$project   = $project;
                                 self::$path_info = $path_info_admin;
-                                self::$base_url  = $admin_url;
+                                self::$base_url  = $tmp_url;
                                 $request_mode    = 'admin';
 
                                 break 2;

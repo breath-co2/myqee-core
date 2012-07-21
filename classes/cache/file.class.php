@@ -118,25 +118,7 @@ class Cache_File
             }
         }
 
-        $i = 1;
-        $data = $this->format_data($lifetime, $value);
-        while (true)
-        {
-            $status = \File::create_file($filename, $data);
-            if ( false!==$status )
-            {
-                break;
-            }
-            elseif($i>=3)
-            {
-                # 尝试3次仍旧失败
-                return false;
-            }
-            # 停顿一下
-            \usleep( 100*$i );
-            $i++;
-        }
-        return true;
+        return \File::create_file($filename, $data);
     }
 
     /**
@@ -173,23 +155,7 @@ class Cache_File
             return true;
         }
 
-        $i = 1;
-        while (true)
-        {
-            $status = \File::unlink($filename);
-            if ( true==$status )
-            {
-                return true;
-            }
-            elseif($i>3)
-            {
-                # 尝试3次仍旧失败
-                return false;
-            }
-            # 停顿一下
-            \usleep( 100*$i );
-            $i++;
-        }
+        return \File::unlink($filename);
     }
 
     /**

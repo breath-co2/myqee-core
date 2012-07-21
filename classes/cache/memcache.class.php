@@ -130,14 +130,14 @@ class Cache_Memcache
                 {
                     $server += array
                     (
-                        'host' => '127.0.0.1',
-                        'port' => 11211,
-                        'persistent' => true
+                        'host'       => '127.0.0.1',
+                        'port'       => 11211,
+                        'persistent' => true,
                     );
 
                     static::$memcaches[$config_name]->addServer($server['host'], $server['port'], (bool)$server['persistent'], $server['weight'], 1, 15, true, $failure_addserver);
 
-                    if (\IS_DEBUG)\Core::debug()->info('add memcached server '.$server['host'].':'.$server['port']);
+                    if (\IS_DEBUG)\Core::debug()->info('add memcache server '.$server['host'].':'.$server['port']);
                 }
             }
         }
@@ -165,7 +165,7 @@ class Cache_Memcache
             {
                 @static::$memcaches[$this->config_name]->close();
 
-                if (\IS_DEBUG)\Core::debug()->info('close memcached server.');
+                if (\IS_DEBUG)\Core::debug()->info('close memcache server.');
 
                 static::$memcaches[$this->config_name] = null;
                 unset(static::$memcaches[$this->config_name]);
@@ -194,12 +194,12 @@ class Cache_Memcache
 
         if ( $return === false )
         {
-            \Core::debug()->error('memcached mis key=' . $key);
+            \Core::debug()->error($key,'memcache mis key');
             return false;
         }
         else
         {
-            \Core::debug()->info('memcached hit key=' . $key);
+            \Core::debug()->info($key,'memcache hit key');
         }
         return $return;
     }
@@ -215,7 +215,7 @@ class Cache_Memcache
     public function set($key, $value = null, $lifetime = 3600)
     {
         $this->_connect();
-        \Core::debug()->info('memcached set key=' . $key);
+        \Core::debug()->info($key,'memcache set key');
 
         if ( static::$_memcached_mode )
         {
@@ -384,7 +384,7 @@ class Cache_Memcache
             }
             catch (\Exception $e)
             {
-                \Core::debug()->error('close memcached connect error:'.$e);
+                \Core::debug()->error('close memcache connect error:'.$e);
             }
 
             static::$memcaches[$config_name] = null;
@@ -394,6 +394,6 @@ class Cache_Memcache
         static::$memcaches = array();
         static::$memcaches_num = array();
 
-        if (\IS_DEBUG)\Core::debug()->info('close all memcached server.');
+        if (\IS_DEBUG)\Core::debug()->info('close all memcache server.');
     }
 }
