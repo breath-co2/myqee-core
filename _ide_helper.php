@@ -12,15 +12,19 @@ namespace
     class Captcha extends \Core\Captcha{}
     abstract class Core extends \Core\Core{}
     class Controller extends \Core\Controller{}
-    class Cookie extends \Core\Cookie{}
 
     class Database extends \Core\Database{}
     abstract class Database_Driver extends \Core\Database_Driver{}
     abstract class Database_Result extends \Core\Database_Result{}
     abstract class Database_Transaction extends \Core\Database_Transaction{}
     class Database_Expression extends \Core\Database_Expression{}
+    class Database_Driver_MySQLI extends \Core\Database_Driver_MySQLI{}
+    class Database_Driver_MySQL extends \Core\Database_Driver_MySQL{}
+    class Database_Driver_Mongo extends \Core\Database_Driver_Mongo{}
     class Database_Driver_MySQLI_Result extends \Core\Database_Driver_MySQLI_Result{}
     class Database_Driver_MySQL_Result extends \Core\Database_Driver_MySQL_Result{}
+    class Database_Driver_Mongo_Result extends \Core\Database_Driver_Mongo_Result{}
+    class Database_Driver_SQLite_Result extends \Core\Database_Driver_SQLite_Result{}
 
     class File extends \Core\File{}
     class Form extends \Core\Form{}

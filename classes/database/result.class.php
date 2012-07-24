@@ -31,6 +31,8 @@ abstract class Database_Result implements \Countable, \Iterator, \SeekableIterat
 
     protected $_current_row = 0;
 
+    protected $_internal_row = 0;
+
     // Return rows as an object or associative array
     protected $_as_object;
 

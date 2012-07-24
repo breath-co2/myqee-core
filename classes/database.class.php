@@ -35,6 +35,13 @@ class Database extends \QueryBuilder
     const TYPE_Mongo = 'Mongo';
 
     /**
+     * SQLite驱动类型
+     *
+     * @var string
+     */
+    const TYPE_SQLite = 'SQLite';
+
+    /**
      * @var  array Database instances
      */
     protected static $instances = array();

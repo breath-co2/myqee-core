@@ -158,10 +158,17 @@ class Database_Driver_MySQL extends \Database_Driver
         # 错误服务器
         static $error_host = array();
 
+        $last_error = null;
         while (true)
         {
             $hostname = $this->_get_rand_host($error_host);
-            if (false===$hostname)throw new \Exception('数据库链接失败');
+            if (false===$hostname)
+            {
+                \Core::debug()->error($error_host,'error_host');
+
+                if ($last_error)throw $last_error;
+                throw new \Exception('数据库链接失败');
+            }
 
             $_connection_id = $this->_get_connection_hash($hostname, $port, $username);
             static::$_current_connection_id_to_hostname[$_connection_id] = $hostname.':'.$port;
@@ -194,13 +201,22 @@ class Database_Driver_MySQL extends \Database_Driver
                 }
                 catch ( \Exception $e )
                 {
-                    if (2==$i && !\in_array($hostname, $error_host))
+                    $last_error = $e;
+                    if (2===$e->getCode() && \preg_match('#(Unknown database|Access denied for user)#i', $e->getMessage()))
                     {
-                        $error_host[] = $hostname;
+                        // 指定的库不存在，直接返回
+                        throw $e;
                     }
+                    else
+                    {
+                        if (2==$i && !\in_array($hostname, $error_host))
+                        {
+                            $error_host[] = $hostname;
+                        }
 
-                    # 3毫秒后重新连接
-                    \usleep(3000);
+                        # 3毫秒后重新连接
+                        \usleep(3000);
+                    }
                 }
             }
         }

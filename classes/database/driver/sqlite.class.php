@@ -2,7 +2,7 @@
 namespace Core;
 
 /**
- * 数据库MySQLI驱动核心类
+ * 数据库SQLite返回类
  *
  * @author     jonwang(jonwang@myqee.com)
  * @category   Core
@@ -11,7 +11,7 @@ namespace Core;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class Database_Driver_MySQLI extends \Database_Driver
+class Database_Driver_SQLite extends Database_Driver
 {
     /**
      * MySQL使用反引号标识符
@@ -21,28 +21,27 @@ class Database_Driver_MySQLI extends \Database_Driver
     protected $_identifier = '`';
 
     /**
-     * 记录当前连接所对应的数据库
-     * @var array
-     */
-    protected static $_current_databases = array();
-
-    /**
      * 记录当前数据库所对应的页面编码
+     *
      * @var array
      */
     protected static $_current_charset = array();
 
     /**
      * 链接寄存器
+     *
      * @var array
      */
     protected static $_connection_instance = array();
 
     /**
-     * 记录connection id所对应的hostname
+     * 记录connection id所对应的DB
+     *
      * @var array
      */
-    protected static $_current_connection_id_to_hostname = array();
+    protected static $_current_connection_id_to_db = array();
+
+    protected $_connection_type = 'master';
 
     /**
      * 连接数据库
@@ -51,43 +50,23 @@ class Database_Driver_MySQLI extends \Database_Driver
      *
      * @param boolean $use_connection_type 是否使用主数据库
      */
-    public function connect($use_connection_type = null)
+    public function connect()
     {
-        if (null!==$use_connection_type)
-        {
-            $this->_set_connection_type($use_connection_type);
-        }
-
         $connection_id = $this->connection_id();
-
-        # 最后检查连接时间
-        static $last_check_connect_time = 0;
 
         if ( !$connection_id || !isset(static::$_connection_instance[$connection_id]) )
         {
             $this->_connect();
         }
 
-        # 如果有当前连接，检查连接
-        if ( $last_check_connect_time>0 && \time()-$last_check_connect_time>=5 )
-        {
-            # 5秒后检查一次连接状态
-            $this->_check_connect();
-        }
-
         # 设置编码
         $this->set_charset($this->config['charset']);
-
-        # 切换表
-        $this->_select_db($this->config['connection']['database']);
-
-        $last_check_connect_time = \time();
     }
 
     /**
      * 获取当前连接
      *
-     * @return mysqli
+     * @return sqlite
      */
     public function connection()
     {
@@ -109,229 +88,107 @@ class Database_Driver_MySQLI extends \Database_Driver
 
     protected function _connect()
     {
-        $database = $hostname = $port = $socket = $username = $password = $persistent = null;
-        \extract($this->config['connection']);
+        $db = $persistent = null;
 
-        if (!$port>0)
-        {
-            $port = 3306;
-        }
+        \extract($this->config['connection']);
 
         # 检查下是否已经有连接连上去了
         if ( static::$_connection_instance )
         {
-            if (\is_array($hostname))
+            $_connection_id = $this->_get_connection_hash($db);
+
+            if ( isset(static::$_connection_instance[$_connection_id]) )
             {
-                $hostconfig = $hostname[$this->_connection_type];
-                if (!$hostconfig)
-                {
-                    throw new \Exception('指定的数据库连接主从配置中('.$this->_connection_type.')不存在，请检查配置');
-                }
-                if (!\is_array($hostconfig))
-                {
-                    $hostconfig = array($hostconfig);
-                }
+                $this->_connection_ids[$this->_connection_type] = $_connection_id;
+
+                return;
             }
-            else
-            {
-                $hostconfig = array(
-                    $hostname
-                );
-            }
-
-            # 先检查是否已经有相同的连接连上了数据库
-            foreach ( $hostconfig as $host )
-            {
-                $_connection_id = $this->_get_connection_hash($host, $port, $username);
-
-                if ( isset(static::$_connection_instance[$_connection_id]) )
-                {
-                    $this->_connection_ids[$this->_connection_type] = $_connection_id;
-
-                    return;
-                }
-            }
-
         }
 
         # 错误服务器
         static $error_host = array();
 
         $last_error = null;
-        while (true)
+
+        for ($i=1; $i<=2; $i++)
         {
-            $hostname = $this->_get_rand_host($error_host);
-            if (false===$hostname)
+            # 尝试重连
+            try
             {
-                \Core::debug()->error($error_host,'error_host');
+                $_connection_id = $this->_get_connection_hash($db);
+                static::$_current_connection_id_to_db[$_connection_id] = \Core::debug_path($db);
 
-                if ($last_error)throw $last_error;
-                throw new \Exception('数据库链接失败');
+                $time = \microtime(true);
+                if ($persistent)
+                {
+                    $tmplink = \sqlite_popen($db);
+                }
+                else
+                {
+                    $tmplink = \sqlite_open($db);
+                }
+
+                if (\IS_DEBUG)\Core::debug()->info('sqlite '.\Core::debug_path($db).' connection time:' . (\microtime(true) - $time));
+
+                # 连接ID
+                $this->_connection_ids[$this->_connection_type] = $_connection_id;
+                static::$_connection_instance[$_connection_id] = $tmplink;
+
+                unset($tmplink);
+
+                break;
             }
-
-            $_connection_id = $this->_get_connection_hash($hostname, $port, $username);
-            static::$_current_connection_id_to_hostname[$_connection_id] = $hostname.':'.$port;
-
-            for ($i=1; $i<=2; $i++)
+            catch ( \Exception $e )
             {
-                # 尝试重连
-                try
+                if ($i==2)
                 {
-                    $time = \microtime(true);
-
-                    if ( empty($persistent) )
-                    {
-                        $tmplink = \mysqli_init();
-                        \mysqli_options($tmplink, \MYSQLI_OPT_CONNECT_TIMEOUT, 3);
-                        \mysqli_real_connect($tmplink, $hostname, $username, $password, $database, $port, null, \MYSQLI_CLIENT_COMPRESS);
-                    }
-                    else
-                    {
-                        $tmplink = new \mysqli($hostname, $username, $password, $database, $port);
-                    }
-
-                    \Core::debug()->info('mysqli '.$hostname.':'.$port.' connection time:' . (\microtime(true) - $time));
-
-                    # 连接ID
-                    $this->_connection_ids[$this->_connection_type] = $_connection_id;
-                    static::$_connection_instance[$_connection_id] = $tmplink;
-
-                    static::$_current_databases[$_connection_id] = $database;
-
-                    unset($tmplink);
-
-                    break 2;
+                    throw $e;
                 }
-                catch ( \Exception $e )
-                {
-                    $last_error = $e;
-                    if (2===$e->getCode() && \preg_match('#(Unknown database|Access denied for user)#i', $e->getMessage()))
-                    {
-                        // 指定的库不存在，直接返回
-                        throw $e;
-                    }
-                    else
-                    {
-                        if (2==$i && !\in_array($hostname, $error_host))
-                        {
-                            $error_host[] = $hostname;
-                        }
 
-                        # 3毫秒后重新连接
-                        \usleep(3000);
-                    }
-                }
+                $last_error = $e;
+
+                # 3毫秒后重新连接
+                \usleep(3000);
             }
         }
     }
 
     /**
-     * 检查连接是否可用
+     * 获取链接唯一hash
      *
-     * 防止因长时间不链接而导致连接丢失的问题 MySQL server has gone away
-     *
-     * @throws \Exception
+     * @param string $file
+     * @return string
      */
-    protected function _check_connect()
+    protected function _get_connection_hash($file)
     {
-        # 5秒检测1次
-        static $error_num = 0;
-        try
-        {
-            $connection_id = $this->connection_id();
-            $connection = static::$_connection_instance[$connection_id];
+        $hash = \sha1(\get_class($this).$file);
+        \Database_Driver::$_hash_to_hostname[$hash] = \Core::debug_path($file);
 
-            if ($connection)
-            {
-                $ping_status = \mysqli_ping($connection);
-            }
-            else
-            {
-                $ping_status = false;
-            }
-        }
-        catch ( \Exception $e )
-        {
-            $error_num++;
-            $ping_status = false;
-        }
-
-        if ( !$ping_status )
-        {
-            if ( $error_num<5 )
-            {
-                $this->close_connect();
-                # 等待3毫秒
-                \usleep(3000);
-
-                # 再次尝试连接
-                $this->connect();
-                $error_num = 0;
-            }
-            else
-            {
-                throw new \Exception('connect mysqli server error');
-            }
-        }
-
+        return $hash;
     }
 
     /**
      * 关闭链接
      */
     public function close_connect()
-{
+    {
         if ($this->_connection_ids)foreach ($this->_connection_ids as $key=>$connection_id)
         {
             if ($connection_id && static::$_connection_instance[$connection_id])
             {
-                \Core::debug()->info('close '.$key.' mysqli '.static::$_current_connection_id_to_hostname[$connection_id].' connection.');
-                @\mysqli_close(static::$_connection_instance[$connection_id]);
+                \Core::debug()->info('close '.$key.' sqlite '.static::$_current_connection_id_to_db[$connection_id].' connection.');
+                @\sqlite_close(static::$_connection_instance[$connection_id]);
 
                 unset(static::$_connection_instance[$connection_id]);
-                unset(static::$_current_databases[$connection_id]);
                 unset(static::$_current_charset[$connection_id]);
-                unset(static::$_current_connection_id_to_hostname[$connection_id]);
+                unset(static::$_current_connection_id_to_db[$connection_id]);
             }
             else
             {
-                \Core::debug()->info($key.' mysqli '.static::$_current_connection_id_to_hostname[$connection_id].' connection has closed.');
+                \Core::debug()->info($key.' sqlite '.static::$_current_connection_id_to_db[$connection_id].' connection has closed.');
             }
 
             $this->_connection_ids[$key] = null;
-        }
-    }
-
-    /**
-     * 切换表
-     *
-     * @param   string Database
-     * @return  void
-     */
-    protected function _select_db($database)
-    {
-        if (!$database)return;
-
-        $connection_id = $this->connection_id();
-
-        if (!$connection_id || !isset(static::$_current_databases[$connection_id]) || $database!=static::$_current_databases[$connection_id])
-        {
-            $connection = static::$_connection_instance[$connection_id];
-
-            if (!$connection)
-            {
-                $this->connect();
-                $this->_select_db($database);
-                return;
-            }
-
-            if ( !\mysqli_select_db($connection,$database) )
-            {
-                throw new \Exception('选择数据表错误:' .\mysqli_error($connection),\mysqli_errno($connection));
-            }
-
-            # 记录当前已选中的数据库
-            static::$_current_databases[$connection_id] = $database;
         }
     }
 
@@ -366,13 +223,6 @@ class Database_Driver_MySQLI extends \Database_Driver
         }
     }
 
-    /**
-     * 设置编码
-     *
-     * @param string $charset
-     * @throws \Exception
-     * @return void|boolean
-     */
     public function set_charset($charset)
     {
         if (!$charset)return;
@@ -387,33 +237,15 @@ class Database_Driver_MySQLI extends \Database_Driver
             return;
         }
 
-        static $_set_names = null;
-        if ( null === $_set_names )
-        {
-            // Determine if we can use mysql_set_charset(), which is only
-            // available on PHP 5.2.3+ when compiled against MySQL 5.0+
-            $_set_names = ! \function_exists('\\mysqli_set_charset');
-        }
-
-        if ( isset(static::$_current_charset[$connection_id]) && $charset == static::$_current_charset[$connection_id] )
+        if ( isset(static::$_current_charset[$connection_id]) && $charset==static::$_current_charset[$connection_id] )
         {
             return true;
         }
 
-        if (true===$_set_names)
-        {
-            // PHP is compiled against MySQL 4.x
-            $status = (bool)\mysqli_query('SET NAMES ' . $this->quote($charset), $connection);
-        }
-        else
-        {
-            // PHP is compiled against MySQL 5.x
-            $status = \mysqli_set_charset($connection, $charset);
-        }
-
+        $status = (bool)\sqlite_query('SET NAMES ' . $this->quote($charset), $connection);
         if ( $status === false )
         {
-            throw new \Exception('Error:' .\mysqli_error($connection),\mysqli_errno($connection));
+            throw new \Exception('Error:' . \sqlite_error_string($connection), \sqlite_last_error($connection));
         }
 
         # 记录当前设置的编码
@@ -422,15 +254,7 @@ class Database_Driver_MySQLI extends \Database_Driver
 
     public function escape($value)
     {
-        $connection = $this->connection();
-
-        $this->_change_charset($value);
-
-        if ( ($value = \mysqli_real_escape_string($connection, $value)) === false )
-        {
-            throw new \Exception('Error:'.\mysqli_errno($connection),\mysqli_error($connection));
-        }
-
+        $value = \sqlite_escape_string($value);
         return "'$value'";
     }
 
@@ -441,55 +265,16 @@ class Database_Driver_MySQLI extends \Database_Driver
      *
      * @param string $sql 查询语句
      * @param string $as_object 是否返回对象
-     * @param boolean $use_connection_type 是否使用主数据库，不设置则自动判断
-     * @return \Database_Driver_MySQLI_Result
+     * @return Database_Driver_SQLite_Result
      */
-    public function query($sql, $as_object=null, $use_connection_type=null)
+    public function query($sql, $as_object=null)
     {
         $sql = \trim($sql);
 
-        if ( \preg_match('#^([a-z]+)(:? |\n|\r)#i', $sql, $m) )
+        if ( \preg_match('#^([a-z]+)(:? |\n|\r)#i',$sql,$m) )
         {
             $type = \strtoupper($m[1]);
         }
-        $typeArr = array
-        (
-            'SELECT',
-            'SHOW',     //显示表
-            'EXPLAIN',  //分析
-            'DESCRIBE', //显示结结构
-            'INSERT',
-            'REPLACE',
-            'UPDATE',
-            'DELETE',
-        );
-        if (!\in_array($type, $typeArr))
-        {
-            $type = 'MASTER';
-        }
-        $slaverType = array('SELECT', 'SHOW', 'EXPLAIN');
-        if ( $type!='MASTER' && \in_array($type, $slaverType) )
-        {
-            if ( true===$use_connection_type )
-            {
-                $use_connection_type = 'master';
-            }
-            else if (\is_string($use_connection_type))
-            {
-                if (!\preg_match('#^[a-z0-9]+$#i',$use_connection_type))$use_connection_type = 'master';
-            }
-            else
-            {
-                $use_connection_type = 'slaver';
-            }
-        }
-        else
-        {
-            $use_connection_type = 'master';
-        }
-
-        # 设置连接类型
-        $this->_set_connection_type($use_connection_type);
 
         # 连接数据库
         $connection = $this->connection();
@@ -497,7 +282,7 @@ class Database_Driver_MySQLI extends \Database_Driver
         # 记录调试
         if( \IS_DEBUG )
         {
-            \Core::debug()->info('SQL:' . $sql);
+            \Core::debug()->info($sql,'SQLite');
 
             static $is_sql_debug = null;
 
@@ -505,13 +290,13 @@ class Database_Driver_MySQLI extends \Database_Driver
 
             if ( $is_sql_debug )
             {
-                $host = $this->_get_hostname_by_connection_hash($this->connection_id());
-                $benchmark = \Core::debug()->profiler('sql')->start('Database', 'mysqli://' . ($host['username']?$host['username'].'@':'') . $host['hostname'] . ($host['port'] && $host['port'] != '3306' ? ':' . $host['port'] : ''));
+                $db = $this->_get_hostname_by_connection_hash($this->connection_id());
+                $benchmark = \Core::debug()->profiler('sql')->start('Database', 'sqlite://'.$db);
             }
         }
 
         static $is_no_cache = null;
-        if ( null === $is_no_cache ) $is_no_cache = (bool)\Core::debug()->profiler('nocached')->is_open();
+        if ( null === $is_no_cache ) $is_no_cache = (bool)Core::debug()->profiler('nocached')->is_open();
         //显示无缓存数据
         if ( $is_no_cache && \strtoupper(\substr($sql, 0, 6)) == 'SELECT' )
         {
@@ -519,7 +304,7 @@ class Database_Driver_MySQLI extends \Database_Driver
         }
 
         // Execute the query
-        if ( ($result = \mysqli_query($connection, $sql)) === false )
+        if ( ($result = \sqlite_query($sql, $connection)) === false )
         {
             if ( isset($benchmark) )
             {
@@ -529,13 +314,13 @@ class Database_Driver_MySQLI extends \Database_Driver
 
             if ( \IS_DEBUG )
             {
-                $err = 'Error:' . \mysqli_error($connection) . '. SQL:' . $sql;
+                $err = 'Error:' . \sqlite_error_string($connection) . '. SQL:' . $sql;
             }
             else
             {
-                $err = \mysqli_error($connection);
+                $err = \sqlite_error_string($connection);
             }
-            throw new \Exception($err, \mysqli_errno($connection));
+            throw new \Exception($err, \sqlite_last_error($connection));
         }
 
         if ( isset($benchmark) )
@@ -544,7 +329,7 @@ class Database_Driver_MySQLI extends \Database_Driver
             if ( $is_sql_debug )
             {
                 $data = array();
-                $data[0]['db']            = $host['hostname'] . '/' . $this->config['connection']['database'] . '/';
+                $data[0]['db']            = $db;
                 $data[0]['select_type']   = '';
                 $data[0]['table']         = '';
                 $data[0]['key']           = '';
@@ -560,9 +345,9 @@ class Database_Driver_MySQLI extends \Database_Driver
 
                 if ( \strtoupper(\substr($sql,0,6))=='SELECT' )
                 {
-                    $re = $connection->query('EXPLAIN ' . $sql);
+                    $re = \sqlite_query('EXPLAIN ' . $sql, $connection );
                     $i = 0;
-                    while ( true == ($row = $re->fetch_array(\MYSQLI_NUM)) )
+                    while ( true == ($row = \sqlite_fetch_array($re , \SQLITE_NUM)) )
                     {
                         $data[$i]['select_type']      = (string)$row[1];
                         $data[$i]['table']            = (string)$row[2];
@@ -585,6 +370,7 @@ class Database_Driver_MySQLI extends \Database_Driver
             {
                 $data = null;
             }
+
             \Core::debug()->profiler('sql')->stop($data);
         }
 
@@ -596,65 +382,20 @@ class Database_Driver_MySQLI extends \Database_Driver
             // Return a list of insert id and rows created
             return array
             (
-               \mysqli_insert_id($connection),
-               \mysqli_affected_rows($connection)
+                \sqlite_last_insert_rowid($connection),
+                \sqlite_changes($connection)
             );
         }
         elseif ( $type === 'UPDATE' || $type === 'DELETE' )
         {
             // Return the number of rows affected
-            return\mysqli_affected_rows($connection);
+            return \sqlite_changes($connection);
         }
         else
         {
             // Return an iterator of results
-            return new \Database_Driver_MySQLI_Result( $result, $sql, $as_object ,$this->config );
+            return new \Database_Driver_SQLite_Result( $result, $sql, $as_object ,$this->config );
         }
-    }
-
-    public function datatype($type)
-    {
-        static $types = array(
-            'blob'	                        => array( 'type' => 'string', 'binary' => true, 'character_maximum_length' => '65535' ),
-            'bool'	                        => array( 'type' => 'bool' ),
-            'bigint unsigned'	            => array( 'type' => 'int', 'min' => '0', 'max' => '18446744073709551615' ),
-            'datetime'	                    => array( 'type' => 'string' ),
-            'decimal unsigned'	            => array( 'type' => 'float', 'exact' => true, 'min' => '0' ),
-            'double'	                    => array( 'type' => 'float' ),
-            'double precision unsigned'	    => array( 'type' => 'float', 'min' => '0' ),
-            'double unsigned'	            => array( 'type' => 'float', 'min' => '0' ),
-            'enum'	                        => array( 'type' => 'string' ),
-            'fixed'	                        => array( 'type' => 'float', 'exact' => true ),
-            'fixed unsigned'	            => array( 'type' => 'float', 'exact' => true, 'min' => '0' ),
-            'float unsigned'	            => array( 'type' => 'float', 'min' => '0' ),
-            'int unsigned'	                => array( 'type' => 'int', 'min' => '0', 'max' => '4294967295' ),
-            'integer unsigned'	            => array( 'type' => 'int', 'min' => '0', 'max' => '4294967295' ),
-            'longblob'	                    => array( 'type' => 'string', 'binary' => true, 'character_maximum_length' => '4294967295' ),
-            'longtext'	                    => array( 'type' => 'string', 'character_maximum_length' => '4294967295' ),
-            'mediumblob'	                => array( 'type' => 'string', 'binary' => true, 'character_maximum_length' => '16777215' ),
-            'mediumint'	                    => array( 'type' => 'int', 'min' => '-8388608', 'max' => '8388607' ),
-            'mediumint unsigned'	        => array( 'type' => 'int', 'min' => '0', 'max' => '16777215' ),
-            'mediumtext'	                => array( 'type' => 'string', 'character_maximum_length' => '16777215' ),
-            'national varchar'	            => array( 'type' => 'string' ),
-            'numeric unsigned'	            => array( 'type' => 'float', 'exact' => true, 'min' => '0' ),
-            'nvarchar'	                    => array( 'type' => 'string' ),
-            'point'	                        => array( 'type' => 'string', 'binary' => true ),
-            'real unsigned'	                => array( 'type' => 'float', 'min' => '0' ),
-            'set'	                        => array( 'type' => 'string' ),
-            'smallint unsigned'	            => array( 'type' => 'int', 'min' => '0', 'max' => '65535' ),
-            'text'	                        => array( 'type' => 'string', 'character_maximum_length' => '65535' ),
-            'tinyblob'	                    => array( 'type' => 'string', 'binary' => true, 'character_maximum_length' => '255' ),
-            'tinyint'	                    => array( 'type' => 'int', 'min' => '-128', 'max' => '127' ),
-            'tinyint unsigned'	            => array( 'type' => 'int', 'min' => '0', 'max' => '255' ),
-            'tinytext'	                    => array( 'type' => 'string', 'character_maximum_length' => '255' ),
-            'year'	                        => array( 'type' => 'string' )
-        );
-
-        $type = \str_replace(' zerofill', '', $type);
-
-        if ( isset($types[$type]) ) return $types[$type];
-
-        return parent::datatype($type);
     }
 
     public function quote($value)
@@ -740,50 +481,16 @@ class Database_Driver_MySQLI extends \Database_Driver
             }
         }
 
-        return $this->_quote_identifier($value);
-    }
 
-    /**
-     * 创建一个数据库
-     *
-     * @param string $database
-     * @param string $charset 编码，不传则使用数据库连接配置相同到编码
-     * @param string $collate 整理格式
-     * @return boolean
-     * @throws \Exception
-     */
-    public function create_database( $database, $charset = null, $collate=null )
-    {
-        $config = $this->config;
-        $this->config['connection']['database'] = null;
-        if (!$charset)
-        {
-            $charset = $this->config['charset'];
-        }
-        $sql = 'CREATE DATABASE '.$this->_quote_identifier($database).' DEFAULT CHARACTER SET '.$charset;
-        if ($collate)
-        {
-            $sql .= ' COLLATE '.$collate;
-        }
-        try
-        {
-            $result = $this->query($sql,null,true)->result();
-            $this->config = $config;
-            return $result;
-        }
-        catch (\Exception $e)
-        {
-            $this->config = $config;
-            throw $e;
-        }
+        return $this->_quote_identifier($value);
     }
 
     protected function _quote_identifier($column)
     {
         if (\is_array($column))
-		{
-			list($column, $alias) = $column;
-		}
+        {
+            list($column, $alias) = $column;
+        }
 
         if ( \is_object($column) )
         {
@@ -803,68 +510,68 @@ class Database_Driver_MySQLI extends \Database_Driver
                 $column = $this->_quote_identifier((string)$column);
             }
         }
-		else
-		{
+        else
+        {
 			# 转换为字符串
-			$column = \trim((string)$column);
+            $column = \trim((string)$column);
 
-			if ( \preg_match('#^(.*) AS (.*)$#i',$column,$m) )
-			{
-			    $column = $m[1];
-			    $alias  = $m[2];
-			}
+            if ( \preg_match('#^(.*) AS (.*)$#i',$column,$m) )
+            {
+                $column = $m[1];
+                $alias  = $m[2];
+            }
 
-			if ($column === '*')
-			{
-				return $column;
-			}
-			elseif (\strpos($column, '"') !== false)
-			{
-				// Quote the column in FUNC("column") identifiers
-				$column = \preg_replace('/"(.+?)"/e', '$this->_quote_identifier("$1")', $column);
-			}
-			elseif (\strpos($column, '.') !== false)
-			{
-				$parts = \explode('.', $column);
+            if ($column === '*')
+            {
+                return $column;
+            }
+            elseif (\strpos($column, '"') !== false)
+            {
+                // Quote the column in FUNC("column") identifiers
+                $column = \preg_replace('/"(.+?)"/e', '$this->_quote_identifier("$1")', $column);
+            }
+            elseif (\strpos($column, '.') !== false)
+            {
+                $parts = \explode('.', $column);
 
-				$prefix = $this->config['table_prefix'];
-				if ($prefix)
-				{
-					// Get the offset of the table name, 2nd-to-last part
-					$offset = \count($parts) - 2;
+                $prefix = $this->config['table_prefix'];
+                if ($prefix)
+                {
+                    // Get the offset of the table name, 2nd-to-last part
+                    $offset = \count($parts) - 2;
 
                     if ( !$this->_as_table || !\in_array($parts[$offset],$this->_as_table) )
                     {
                         $parts[$offset] = $prefix . $parts[$offset];
                     }
-				}
+                }
 
-				foreach ($parts as & $part)
-				{
-					if ($part !== '*')
-					{
-						// Quote each of the parts
-						$part = $this->_identifier.$part.$this->_identifier;
-					}
-				}
+                foreach ($parts as & $part)
+                {
+                    if ($part !== '*')
+                    {
+                        // Quote each of the parts
+                        $part = $this->_identifier.$part.$this->_identifier;
+                    }
+                }
 
-				$column = \implode('.', $parts);
-			}
-			else
-			{
-				$column = $this->_identifier.$column.$this->_identifier;
-			}
-		}
+                $column = \implode('.', $parts);
+            }
+            else
+            {
+                $column = $this->_identifier.$column.$this->_identifier;
+            }
+        }
 
-		if ( isset($alias) )
-		{
-			$column .= ' AS '.$this->_identifier.$alias.$this->_identifier;
-		}
+        if ( isset($alias) )
+        {
+            $column .= ' AS '.$this->_identifier.$alias.$this->_identifier;
+        }
 
 		# 切换编码
 		$this->_change_charset($column);
 
-		return $column;
+        return $column;
     }
 
     protected function _compile_selete($builder)
