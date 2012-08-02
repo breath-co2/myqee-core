@@ -20,7 +20,7 @@ class Database_Expression
     /**
      * Sets the expression string.
      *
-     * $expression = new QueryBuilder_Expression('COUNT(users.id)');
+     * $expression = new Database_Expression('COUNT(users.id)');
      *
      * @return  void
      */
@@ -48,7 +48,7 @@ class Database_Expression
      * echo $expression;
      *
      * @return  string
-     * @uses    QueryBuilder_Expression::value
+     * @uses    Database_Expression::value
      */
     public function __toString()
     {

@@ -47,25 +47,9 @@ class Cache_File
         $filename = $this->get_filename_by_key($key);
         if ( \file_exists($filename) )
         {
-            $i = 1;
-            while (true)
-            {
-                $data = @\file_get_contents($filename);
-                if ( false!==$data )
-                {
-                    break;
-                }
-                elseif($i>3)
-                {
-                    # 尝试3次仍旧失败
-                    return false;
-                }
-                # 停顿一下
-                \usleep( 100*$i );
-                $i++;
-            }
+            $data = @\file_get_contents($filename);
 
-            if ( $this->get_expired_setting($key,$data) )
+            if ( $data && $this->get_expired_setting($key,$data) )
             {
                 return $data;
             }
@@ -94,8 +78,7 @@ class Cache_File
     {
         if ( \is_array($key) )
         {
-            # 支持多取
-            $data = array();
+            # 支持多存
             $i=0;
             foreach ( $key as $k=>$v )
             {
@@ -118,7 +101,9 @@ class Cache_File
             }
         }
 
-        return \File::create_file($filename, $data);
+        $value = $this->format_data($lifetime,$value);
+
+        return \File::create_file($filename, $value);
     }
 
     /**
@@ -206,7 +191,7 @@ class Cache_File
 
         $fh = \fopen($filename, 'r+');
         $i=1;
-        while ( $i<3 )
+        while ( $i<=2 )
         {
             if ( \flock( $fh, \LOCK_EX ) )
             {
@@ -231,7 +216,7 @@ class Cache_File
                 return true;
             }
 
-            \usleep( 100*$i );
+            \usleep( 30*$i );
             $i++;
         }
 
@@ -245,7 +230,7 @@ class Cache_File
      */
     protected function get_filename_by_key( $key )
     {
-        return $this->dir . 'cache_file_' . \md5($key.'_&@c)ac%he_file');
+        return $this->dir . 'cache_file_' . \preg_replace('#[^a-z0-9_\-]*#i','',$key) . '_' . \md5($key.'_&@c)ac%he_file');
     }
 
     protected function get_expired_setting( $key, & $data )

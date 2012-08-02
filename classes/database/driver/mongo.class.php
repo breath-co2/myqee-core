@@ -548,7 +548,7 @@ class Database_Driver_Mongo extends Database_Driver
 
                     if ($result && $result['ok']==1)
                     {
-                        return new \Database_Driver_Mongo_Result(new \ArrayObject($result['retval']), $options, $as_object ,$this->config );
+                        return new \Database_Driver_Mongo_Result(new \ArrayIterator($result['retval']), $options, $as_object ,$this->config );
                     }
                     else
                     {
@@ -684,6 +684,7 @@ class Database_Driver_Mongo extends Database_Driver
         $last_condition = null;
         $sql = array();
         $query = array();
+        $open_q = false;
 
         foreach ( $conditions as $group )
         {
@@ -702,6 +703,7 @@ class Database_Driver_Mongo extends Database_Driver
                     if ( $last_condition !== '(' )
                     {
                         $query['$'.\strtolower($logic)] = & $sql;
+                        $open_q = true;
                     }
                 }
                 elseif ( $condition === ')' )
@@ -709,9 +711,19 @@ class Database_Driver_Mongo extends Database_Driver
                     // 删除引用关系
                     unset($sql);
                     $sql = array();
+                    $open_q = false;
                 }
                 else
                 {
+                    if ('OR'==$logic)
+                    {
+                        // 增加引用关系
+                        $tmp_sql =& $sql;            //首先将$sql变量给$tmp_sql
+                        unset($sql);                 //删除$sql变量引用
+                        if (!isset($tmp_sql['$or']))$tmp_sql['$or'] = array();
+                        $sql =& $tmp_sql['$or'];     //下面的$sql都放在$tmp_sql['$or']下
+                    }
+
                     list ( $column, $op, $value ) = $condition;
                     $op = \strtolower($op);
 
@@ -801,13 +813,21 @@ class Database_Driver_Mongo extends Database_Driver
                             $sql[$column]['$'.$op_arr[$op]] = $value;
                         }
                     }
+
+                    if ('OR'==$logic)
+                    {
+                        # 解除引用关系
+                        unset($sql);        //删除$sql
+                        $sql =& $tmp_sql;   //将引用关系重新给$sql
+                        unset($tmp_sql);    //删除$tmp_sql
+                    }
                 }
 
                 $last_condition = $condition;
             }
         }
 
-        if ($sql)
+        if ( $sql && !$open_q )
         {
             $query = \array_merge($query,$sql);
         }

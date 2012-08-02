@@ -139,7 +139,7 @@ abstract class Database_Driver
      * $db->quote('fred'); // 'fred'
      *
      * Objects passed to this function will be converted to strings.
-     * [QueryBuilder_Expression] objects will use the value of the expression.
+     * [Database_Expression] objects will use the value of the expression.
      * [Database_Query] objects will be compiled and converted to a sub-query.
      * All other objects will be converted using the `__toString` method.
      *

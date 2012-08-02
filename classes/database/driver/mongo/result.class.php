@@ -22,7 +22,7 @@ class Database_Driver_Mongo_Result extends \Database_Result
 
     protected function total_count()
     {
-        if ($this->_result instanceof \ArrayObject)
+        if ($this->_result instanceof \ArrayIterator)
         {
             $count = $this->_result->count();
         }
@@ -38,27 +38,36 @@ class Database_Driver_Mongo_Result extends \Database_Result
 
     public function seek($offset)
     {
+        if ($this->_result instanceof \ArrayIterator)
+        {
+            if ( $this->offsetExists($offset) && $this->_result->seet($offset) )
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
         if ( $this->offsetExists($offset) )
         {
-            if ( !($this->_result instanceof \ArrayObject) )
+            if ($this->_internal_row < $this->_current_row)
             {
-                if ($this->_internal_row < $this->_current_row)
+                $c = $this->_internal_row - $this->_current_row;
+                for( $i=0;$i<$c;$i++ )
                 {
-                    $c = $this->_internal_row - $this->_current_row;
-                    for( $i=0;$i<$c;$i++ )
-                    {
-                        $this->_result->next();
-                    }
+                    $this->_result->next();
                 }
-                else
+            }
+            else
+            {
+                // 小于当前指针，则回退重新来过，因为目前 MongoCursor 还没有回退的功能
+                $this->_result->rewind();
+                $c = $this->_current_row - $this->_internal_row;
+                for( $i=0;$i<$c;$i++ )
                 {
-                    // 小于当前指针，则回退重新来过，因为目前 MongoCursor 还没有回退的功能
-                    $this->_result->rewind();
-                    $c = $this->_current_row - $this->_internal_row;
-                    for( $i=0;$i<$c;$i++ )
-                    {
-                        $this->_result->next();
-                    }
+                    $this->_result->next();
                 }
             }
 
@@ -74,9 +83,12 @@ class Database_Driver_Mongo_Result extends \Database_Result
 
     protected function fetch_assoc()
     {
-        if ($this->_result instanceof \ArrayObject)
+        if ($this->_result instanceof \ArrayIterator)
         {
-            return \current($this->_result);
+            $data = $this->_result->current();
+            $this->_result->next();
+
+            return $data;
         }
 
         // 当有缓存数据
@@ -120,11 +132,7 @@ class Database_Driver_Mongo_Result extends \Database_Result
      */
     public function snapshot()
     {
-        if ($this->_result instanceof \ArrayObject)
-        {
-
-        }
-        else
+        if (!($this->_result instanceof \ArrayIterator))
         {
             $this->_result->snapshot();
         }
