@@ -671,6 +671,228 @@ class Database_Driver_Mongo extends Database_Driver
         }
     }
 
+    protected static function _compile_set_data( $op, $value , $parameters )
+    {
+        $op = \strtolower($op);
+        $op_arr = array
+        (
+            '>'  => 'gt',
+            '>=' => 'gte',
+            '<'  => 'lt',
+            '<=' => 'lte',
+            '!=' => 'ne',
+            '<>' => 'ne',
+        );
+
+        if ( $op === 'between' && \is_array($value) )
+        {
+            list ( $min, $max ) = $value;
+
+            if ( \is_string($min) && \array_key_exists($min, $parameters) )
+            {
+                $min = $parameters[$min];
+            }
+            $option['$gte'] = $min;
+
+            if ( \is_string($max) && \array_key_exists($max, $parameters) )
+            {
+                $max = $parameters[$max];
+            }
+            $option['$lte'] = $max;
+        }
+        elseif ($op==='=')
+        {
+            if (\is_object($value))
+            {
+                if ($value instanceof \MongoCode)
+                {
+                    $option['$where'] = $value;
+                }
+                elseif ($value instanceof \Database_Expression)
+                {
+                    $option = $value->value();
+                }
+                else
+                {
+                    $option = $value;
+                }
+            }
+            else
+            {
+                $option = $value;
+            }
+        }
+        elseif ($op==='in')
+        {
+            $option = array('$in'=>$value);
+        }
+        elseif ($op==='not in')
+        {
+            $option = array('$nin'=>$value);
+        }
+        elseif ($op==='mod')
+        {
+            if ($value[2]=='=')
+            {
+                $option = array('$mod'=>array($value[0],$value[1]));
+            }
+            elseif ($value[2]=='!='||$value[2]=='not')
+            {
+                $option = array
+                (
+                    '$ne' => array('$mod'=>array($value[0],$value[1]))
+                );
+            }
+            elseif ( \substr($value[2],0,1)=='$' )
+            {
+                $option = array
+                (
+                    $value[2] => array('$mod'=>array($value[0],$value[1]))
+                );
+            }
+            elseif ( isset($value[2]) )
+            {
+                $option = array
+                (
+                    '$'.$value[2] => array('$mod'=>array($value[0],$value[1]))
+                );
+            }
+        }
+        elseif ($op==='like')
+        {
+            // 将like转换成正则处理
+            $value = \preg_quote($value,'/');
+
+            if ( \substr($value,0,1)=='%' )
+            {
+                $value = '/' . \substr($value,1);
+            }
+            else
+            {
+                $value = '/^'.$value;
+            }
+
+            if (\substr($value,-1)=='%')
+            {
+                $value = \substr($value,0,-1) . '/';
+            }
+            else
+            {
+                $value = $value.'$/';
+            }
+
+            $value = \str_replace('%','*',$value);
+
+            $option = new \MongoRegex($value);
+        }
+        else
+        {
+            if ( isset($op_arr[$op]) )
+            {
+                $option['$'.$op_arr[$op]] = $value;
+            }
+        }
+
+        return $option;
+    }
+
+    protected static function _compile_paste_data(&$tmp_query , $tmp_option , $last_logic , $now_logic , $column=null)
+    {
+        if ( $last_logic!= $now_logic )
+        {
+            // 当$and $or 不一致时，则把前面所有的条件合并为一条组成一个$and|$or的条件
+            if ($column)
+            {
+                $tmp_query = array($now_logic => $tmp_query ? array($tmp_query, array($column=>$tmp_option)) : array(array($column=>$tmp_option)));
+            }
+            else
+            {
+                $tmp_query = array($now_logic => $tmp_query ? array($tmp_query, $tmp_option) : array($tmp_option));
+            }
+        }
+        elseif ( isset($tmp_query[$now_logic]) )
+        {
+            // 如果有 $and $or 条件，则加入
+            $tmp_query[$now_logic][] = $tmp_option;
+        }
+        else if ($column)
+        {
+            if ( isset($tmp_query[$column]) )
+            {
+                // 如果有相应的字段名，注，这里面已经不可能$logic=='$or'了
+                if ( \is_array($tmp_option) && \is_array($tmp_query[$column]) )
+                {
+                    // 用于合并类似 $tmp_query = array('field_1'=>array('$lt'=>1));
+                    // $tmp_option = array('field_1'=>array('$gt'=>10)); 这种情况
+                    // 最后的合并结果就是 array('field_1'=>array('$lt'=>1,'$gt'=>10));
+                    $need_reset = false;
+                    foreach ( $tmp_option as $tmpk => $tmpv )
+                    {
+                        if ( isset($tmp_query[$column][$tmpk]) )
+                        {
+                            $need_reset = true;
+                            break;
+                        }
+                    }
+
+                    if ( $need_reset )
+                    {
+                        $tmp_query_bak = $tmp_query; // 给一个数据copy
+                        $tmp_query = array('$and' => array()); // 清除$tmp_query
+
+                        // 将条件全部加入$and里
+                        foreach ( $tmp_query_bak as $tmpk => $tmpv )
+                        {
+                            $tmp_query['$and'][] = array($tmpk => $tmpv);
+                        }
+                        unset($tmp_query_bak);
+
+                        // 新增加的条件也加入进去
+                        foreach ( $tmp_option as $tmpk => $tmpv )
+                        {
+                            $tmp_query['$and'][] = array($column=>array($tmpk => $tmpv));
+                        }
+                    }
+                    else
+                    {
+                        // 无需重新设置数据则合并
+                        foreach ( $tmp_option as $tmpk => $tmpv )
+                        {
+                            $tmp_query[$column][$tmpk] = $tmpv;
+                        }
+                    }
+
+                }
+                elseif ( \is_array($tmp_option) || \is_array($tmp_query[$column]) )
+                {
+                    # 有一个是数组
+                    $tmp_query['$and'] = array
+                    (
+                        array( $column => $tmp_query[$column] ),
+                        array( $column => $tmp_option ),
+                    );
+                    unset($tmp_query[$column]);
+                }
+                else
+                {
+                    # 都是字符串
+                    $tmp_query[$column] = $tmp_option;
+                }
+            }
+            else
+            {
+                // 直接加入字段条件
+                $tmp_query[$column] = $tmp_option;
+            }
+        }
+        else
+        {
+            $tmp_query = \array_merge($tmp_query,$tmp_option);
+        }
+
+        return $tmp_query;
+    }
+
     /**
      * Compiles an array of conditions into an SQL partial. Used for WHERE
      * and HAVING.
@@ -681,155 +903,59 @@ class Database_Driver_Mongo extends Database_Driver
      */
     protected function _compile_conditions(array $conditions, $parameters)
     {
-        $last_condition = null;
-        $sql = array();
+        $last_logic = '$and';
+        $tmp_query_list = array();
         $query = array();
-        $open_q = false;
+        $tmp_query = & $query;
+        $condition_num = 0;
+        $multikey_mod = false;    //同字段多条件模式，适用于$or和$and条件
 
         foreach ( $conditions as $group )
         {
-            // Process groups of conditions
             foreach ( $group as $logic => $condition )
             {
+                $logic = '$'.\strtolower($logic);        //$or,$and
+
                 if ( $condition === '(' )
                 {
-                    if (!$query)
-                    {
-                        $query = $sql;
-                        unset($sql);
-                        $sql = array();
-                    }
-
-                    if ( $last_condition !== '(' )
-                    {
-                        $query['$'.\strtolower($logic)] = & $sql;
-                        $open_q = true;
-                    }
+                    $tmp_query_list[] = array();                                  //增加一行数据
+                    unset($tmp_query);                                            //删除引用关系，这样数据就保存在了$tmp_query_list里
+                    $tmp_query =& $tmp_query_list[\count($tmp_query_list)-1];     //把指针移动到新的组里
+                    $last_logic_list[] = $last_logic;                             //放一个备份
+                    $last_logic = '$and';                                         //新组开启，把$last_logic设置成$and
                 }
                 elseif ( $condition === ')' )
                 {
-                    // 删除引用关系
-                    unset($sql);
-                    $sql = array();
-                    $open_q = false;
-                }
-                else
-                {
-                    if ('OR'==$logic)
+                    # 关闭一个组
+                    $last_logic = \array_pop($last_logic_list);                    //恢复上一个$last_logic
+
+                    # 将最后一个移除
+                    $tmp_query2 = \array_pop($tmp_query_list);
+
+                    $c = \count($tmp_query_list);
+                    unset($tmp_query);
+                    if ($c)
                     {
-                        // 增加引用关系
-                        $tmp_sql =& $sql;            //首先将$sql变量给$tmp_sql
-                        unset($sql);                 //删除$sql变量引用
-                        if (!isset($tmp_sql['$or']))$tmp_sql['$or'] = array();
-                        $sql =& $tmp_sql['$or'];     //下面的$sql都放在$tmp_sql['$or']下
-                    }
-
-                    list ( $column, $op, $value ) = $condition;
-                    $op = \strtolower($op);
-
-                    if ( $op === 'between' && \is_array($value) )
-                    {
-                        list ( $min, $max ) = $value;
-
-                        if ( \is_string($min) && \array_key_exists($min, $parameters) )
-                        {
-                            $min = $parameters[$min];
-                        }
-                        $sql[$column]['$gte'] = $min;
-
-                        if ( \is_string($max) && \array_key_exists($max, $parameters) )
-                        {
-                            $max = $parameters[$max];
-                        }
-                        $sql[$column]['$lte'] = $max;
-                    }
-                    elseif ($op==='=')
-                    {
-                        if (\is_object($value))
-                        {
-                            if ($value instanceof \MongoCode)
-                            {
-                                $sql[$column]['$where'] = $value;
-                            }
-                            else
-                            {
-                                $sql[$column] = $value;
-                            }
-                        }
-                        else
-                        {
-                            $sql[$column] = $value;
-                        }
-                    }
-                    elseif ($op==='in')
-                    {
-                        $sql[$column] = array('$in'=>$value);
-                    }
-                    elseif ($op==='not in')
-                    {
-                        $sql[$column] = array('$nin'=>$value);
-                    }
-                    elseif ($op==='like')
-                    {
-                        // 将like转换成正则处理
-                        $value = \preg_quote($value,'/');
-
-                        if ( \substr($value,0,1)=='%' )
-                        {
-                            $value = '/' . \substr($value,1);
-                        }
-                        else
-                        {
-                            $value = '/^'.$value;
-                        }
-
-                        if (\substr($value,-1)=='%')
-                        {
-                            $value = \substr($value,0,-1) . '/';
-                        }
-                        else
-                        {
-                            $value = $value.'$/';
-                        }
-
-                        $value = \str_replace('%','*',$value);
-
-                        $sql[$column] = new \MongoRegex($value);
+                        $tmp_query =& $tmp_query_list[$c-1];
                     }
                     else
                     {
-                        $op_arr = array
-                        (
-                            '>'  => 'gt',
-                            '>=' => 'gte',
-                            '<'  => 'lt',
-                            '<=' => 'lte',
-                            '!=' => 'ne',
-                            '<>' => 'ne',
-                            '%'  => 'mod',
-                        );
-                        if ( isset($op_arr[$op]) )
-                        {
-                            $sql[$column]['$'.$op_arr[$op]] = $value;
-                        }
+                        $tmp_query =& $query;
                     }
+                    static::_compile_paste_data($tmp_query , $tmp_query2 , $last_logic , $logic );
 
-                    if ('OR'==$logic)
-                    {
-                        # 解除引用关系
-                        unset($sql);        //删除$sql
-                        $sql =& $tmp_sql;   //将引用关系重新给$sql
-                        unset($tmp_sql);    //删除$tmp_sql
-                    }
+                    unset($tmp_query2,$c);
+                }
+                else
+                {
+                    list ( $column, $op, $value ) = $condition;
+                    $tmp_option = static::_compile_set_data($op, $value , $parameters);
+                    static::_compile_paste_data($tmp_query, $tmp_option , $last_logic , $logic ,$column);
+
+                    $last_logic = $logic;
                 }
 
-                $last_condition = $condition;
             }
-        }
-
-        if ( $sql && !$open_q )
-        {
-            $query = \array_merge($query,$sql);
         }
 
         return $query;

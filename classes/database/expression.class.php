@@ -39,7 +39,7 @@ class Database_Expression
      */
     public function value()
     {
-        return (string)$this->_value;
+        return $this->_value;
     }
 
     /**

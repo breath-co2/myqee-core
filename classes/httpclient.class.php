@@ -2,7 +2,7 @@
 namespace Core;
 
 /**
- * Http请求核心类
+ * HTTP请求数据核心类
  *
  * @author     jonwang(jonwang@myqee.com)
  * @category   Core
@@ -33,7 +33,7 @@ class HttpClient
      *
      * @var string $default_type
      */
-    protected static $default_type = 'Curl';
+    protected static $default_type = null;
 
     /**
      * 当前使用操作类型
@@ -54,13 +54,29 @@ class HttpClient
      *
      * @var string
      */
-    protected static $agent = "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10.5; en-US; rv:1.9.1.2) Gecko/20090729 Firefox/3.5.2";
+    protected static $agent = '';
 
+    /**
+     * @param string $type 指定驱动类型
+     */
     function __construct($type = null)
     {
-        $this->type = $type ? $type : static::$default_type;
-
-        $this->set_agent();
+        if ($type)
+        {
+            $this->type = $type;
+        }
+        elseif (static::$default_type)
+        {
+            $this->type = static::$default_type;
+        }
+        elseif ( static::is_support_curl() )
+        {
+            $this->type = static::TYPE_CURL;
+        }
+        else
+        {
+            $this->type = static::TYPE_Fsock;
+        }
     }
 
     /**
@@ -75,6 +91,18 @@ class HttpClient
     }
 
     /**
+     * 是否支持CURL
+     *
+     * @return boolean
+     */
+    protected static function is_support_curl()
+    {
+        static $s = null;
+        if (null===$s)$s = \function_exists('\\curl_init');
+        return $s;
+    }
+
+    /**
      * 设置$agent
      *
      * @param string $agent
@@ -82,9 +110,7 @@ class HttpClient
      */
     public function set_agent($agent = null)
     {
-        $agent or $agent = static::$agent;
         $this->driver()->set_agent($agent);
-
         return $this;
     }
 
@@ -142,15 +168,28 @@ class HttpClient
     }
 
     /**
+     * 设置多个列队默认排队数上限
+     *
+     * @param int $num
+     * @return HttpClient
+     */
+    public function set_multi_max_num($num=0)
+    {
+        $this->driver()->set_multi_exec_num();
+        return $this;
+    }
+
+    /**
      * HTTP GET方式请求
      *
-     * curl 方式支持多并发进程，这样可以大大缩短批量URL请求时间
+     * 支持多并发进程，这样可以大大缩短API请求时间
      *
      * @param string/array $url 支持多个URL
      * @param array $data
      * @param $timeout
      * @return string
      * @return \HttpClient_Result 但个URL返回当然内容对象
+     * @return Arr 多个URL时将返回一个数组对象
      */
     public function get($url, $timeout = 10)
     {
@@ -176,6 +215,7 @@ class HttpClient
 
     /**
      * POST方式请求
+     *
      * @param $url
      * @param $data
      * @param $timeout

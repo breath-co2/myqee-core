@@ -11,7 +11,7 @@ namespace Core;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class QueryBuilder
+class Database_QueryBuilder
 {
 
     // Builder ...
@@ -649,6 +649,33 @@ class QueryBuilder
     }
 
     /**
+     * 返回 "$column MOD $mod = $value"
+     *
+     * @param string $column
+     * @param int $mod_dig
+     * @param int $value
+     * @return  \Database
+     */
+    public function mod($column, $mod_dig , $value)
+    {
+        return $this->and_where($column, array($mod_dig,$value) , 'mod' );
+    }
+
+    /**
+     * 返回 "OR $column MOD $mod = $value"
+     *
+     * @param string $column
+     * @param int $mod_dig
+     * @param int $value
+     * @return  \Database
+     */
+    public function or_mod($column, $mod_dig , $value , $op = '=')
+    {
+        return $this->or_where($column, array($mod_dig,$value,$op) , 'mod' );
+    }
+    
+
+    /**
      * 使用指定索引
      *
      * @param string
@@ -690,8 +717,8 @@ class QueryBuilder
     /**
      * 创建一个不会被过滤处理的字符串
      *
-     * @param   string  expression
-     * @return  \Database\Expression
+     * @param  string expression
+     * @return \Database_Expression
      */
     public static function expr_value($string)
     {

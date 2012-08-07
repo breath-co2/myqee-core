@@ -89,7 +89,7 @@ abstract class Database_Result implements \Countable, \Iterator, \SeekableIterat
     {
         if ( \method_exists( $this->_result ,$m ) )
         {
-            return \call_user_func_array($m, $this->_result, $v);
+            return \call_user_func_array(array($this->_result,$m), $v);
         }
         else
         {
@@ -439,7 +439,7 @@ abstract class Database_Result implements \Countable, \Iterator, \SeekableIterat
         }
         else
         {
-            if ( \Core::server_utf8() )
+            if ( \IS_MBSTRING )
             {
                 $data = \mb_convert_encoding($data,'UTF-8',$this->_config['data_charset']);
             }

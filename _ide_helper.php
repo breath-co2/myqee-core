@@ -18,6 +18,7 @@ namespace
     abstract class Database_Result extends \Core\Database_Result{}
     abstract class Database_Transaction extends \Core\Database_Transaction{}
     class Database_Expression extends \Core\Database_Expression{}
+    class Database_QueryBuilder extends \Core\Database_QueryBuilder{}
     class Database_Driver_MySQLI extends \Core\Database_Driver_MySQLI{}
     class Database_Driver_MySQL extends \Core\Database_Driver_MySQL{}
     class Database_Driver_Mongo extends \Core\Database_Driver_Mongo{}
@@ -53,8 +54,6 @@ namespace
     class Pagination extends \Core\Pagination{}
     class Permission extends \Core\Permission{}
     class PinYin extends \Core\PinYin{}
-
-    class QueryBuilder extends \Core\QueryBuilder{}
 
     class Session extends \Core\Session{}
     class Session_Cache extends \Core\Session_Cache{}

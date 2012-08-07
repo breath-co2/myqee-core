@@ -11,7 +11,7 @@ namespace Core;
  * @copyright  Copyright (c) 2008-2012 myqee.com
  * @license    http://www.myqee.com/license.html
  */
-class Database extends \QueryBuilder
+class Database extends \Database_QueryBuilder
 {
     /**
      * MySQL驱动类型
@@ -59,6 +59,13 @@ class Database extends \QueryBuilder
      * @var \Database_Driver_MySQLI
      */
     protected $driver;
+
+    /**
+     * 数据库连接对象
+     *
+     * @var mysqli
+     */
+    protected $_connection;
 
     /**
      * 是否自动使用主数据库
@@ -511,7 +518,7 @@ class Database extends \QueryBuilder
      */
     public static function close_all_connect()
     {
-        if (!static::$instances||!\is_array(static::$instances)) return;
+        if (!static::$instances || !\is_array(static::$instances)) return;
 
         foreach ( static::$instances as $database )
         {

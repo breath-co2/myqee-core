@@ -1206,6 +1206,10 @@ class Database_Driver_MySQL extends \Database_Driver
                         // Quote the min and max value
                         $value = $this->quote($min) . ' AND ' . $this->quote($max);
                     }
+                    elseif ( $op == 'MOD' )
+                    {
+                        $value = $this->quote($value[0]) .' '.\strtoupper($value[2]).' '. $this->quote($value[1]);
+                    }
                     else
                     {
                         if ( \is_string($value) && \array_key_exists($value, $parameters) )

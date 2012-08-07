@@ -142,8 +142,31 @@ class View
             throw new \Exception('You must set the file to use within your view before rendering');
         }
 
-        // Combine local and global data and capture the output
-        $output = static::capture($this->_file, $this->_data);
+        $capture = function ($myqee_view_filename, array $myqee_view_data , $myqee_view_global_data)
+        {
+            \extract($myqee_view_data, \EXTR_SKIP);
+
+            if ( $myqee_view_global_data )
+            {
+                \extract($myqee_view_global_data, \EXTR_REFS);
+            }
+            unset($myqee_view_data,$myqee_view_global_data);
+
+            \ob_start();
+            try
+            {
+                require $myqee_view_filename;
+            }
+            catch ( \Exception $e )
+            {
+                \ob_end_clean();
+                throw $e;
+            }
+
+            return \ob_get_clean();
+        };
+
+        $output = $capture($this->_file, $this->_data , static::$_global_data);
 
         if ( $print )
         {
@@ -241,38 +264,6 @@ class View
         {
             return array();
         }
-    }
-
-    protected static function capture($myqee_view_filename, array $myqee_view_data)
-    {
-        // Import the view variables to local namespace
-        \extract($myqee_view_data, \EXTR_SKIP);
-
-        if ( static::$_global_data )
-        {
-            // Import the global view variables to local namespace and maintain references
-            \extract(static::$_global_data, \EXTR_REFS);
-        }
-
-        // Capture the view output
-        \ob_start();
-
-        try
-        {
-            // Load the view within the current scope
-            require $myqee_view_filename;
-        }
-        catch ( \Exception $e )
-        {
-            // Delete the output buffer
-            \ob_end_clean();
-
-            // Re-throw the exception
-            throw $e;
-        }
-
-        // Get the captured output and close the buffer
-        return \ob_get_clean();
     }
 }
 
