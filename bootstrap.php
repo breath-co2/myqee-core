@@ -112,6 +112,13 @@ define('DIR_WWWROOT', DIR_SYSTEM.'wwwroot'.DS);
 define('IS_CLI',(PHP_SAPI==='cli'));
 
 /**
+ * 是否系统内部调用模式
+ *
+ * @var boolean
+ */
+define('IS_SYSTEM_MODE', !IS_CLI && isset($_SERVER['HTTP_X_MYQEE_SYSTEM_HASH']) ? true : false);
+
+/**
  * 是否命令行执行
  *
  * @var boolean
@@ -185,7 +192,7 @@ final class Bootstrap
      *
      * @var float
      */
-    const VERSION = '2.0';
+    const VERSION = '2.0.1';
 
     /**
      * 包含目录
@@ -275,24 +282,98 @@ final class Bootstrap
 
             self::$config = array
             (
-                'core'=>array()
+                'core' => array()
             );
 
             # 读取主配置
             $include_config_file( self::$config['core'] , DIR_SYSTEM.'config'.EXT );
 
-            # 读取DEBUG配置
+            # 读Debug配置
             if ( isset(self::$config['core']['debug_config']) && self::$config['core']['debug_config'] && is_file(DIR_SYSTEM.'debug.config'.EXT) )
             {
-                $include_config_file( self::$config , DIR_SYSTEM.'debug.config'.EXT );
+                $include_config_file( self::$config['core'] , DIR_SYSTEM.'debug.config'.EXT );
+            }
+
+            # DEBUG配置
+            if ( isset(self::$config['core']['local_debug_cfg']) && self::$config['core']['local_debug_cfg'] )
+            {
+                if ( function_exists( 'get_cfg_var' ) )
+                {
+                    $open_debug = get_cfg_var( self::$config['core']['local_debug_cfg'] ) ? 1 : 0;
+                }
+                else
+                {
+                    $open_debug = 0;
+                }
+            }
+            else
+            {
+                $open_debug = 0;
             }
 
             /**
-             * 是否系统内部调用模式
+             * 判断是否开启了在线调试
              *
-             * @var boolean
+             * @return boolean
              */
-            define('IS_SYSTEM_MODE',isset($_SERVER['HTTP_X_MYQEE_SYSTEM_HASH']));
+            $is_online_debug = function ()
+            {
+                if ( IS_SYSTEM_MODE )
+                {
+                    if ( isset($_SERVER['HTTP_X_MYQEE_SYSTEM_DEBUG']) && $_SERVER['HTTP_X_MYQEE_SYSTEM_DEBUG']=='1' )
+                    {
+                        return true;
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+
+                if (!isset($_COOKIE['_debug_open'])) return false;
+                if (!isset(Bootstrap::$config['core']['debug_open_password'])) return false;
+                if (!is_array(Bootstrap::$config['core']['debug_open_password']))return false;
+
+                foreach ( Bootstrap::$config['core']['debug_open_password'] as $user=>$pass )
+                {
+                    if ($_COOKIE['_debug_open'] == Bootstrap::get_debug_hash($user,$pass))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            };
+
+            if ( $is_online_debug() )
+            {
+                $open_debug == 1<<1 | $open_debug;
+            }
+
+            unset($is_online_debug);
+
+            /**
+             * 是否开启DEBUG模式
+             *
+             *     if (IS_DEBUG>>1)
+             *     {
+             *         //开启了在线调试
+             *     }
+             *
+             *     if (IS_DEBUG & 1)
+             *     {
+             *         //本地调试打开
+             *     }
+             *
+             *     if (IS_DEBUG)
+             *     {
+             *         // 开启了调试
+             *     }
+             *
+             * @var int
+             */
+            define('IS_DEBUG', $open_debug);
+
 
             # 请求模式
             $request_mode = '';
@@ -317,8 +398,6 @@ final class Bootstrap
                 self::$path_info = trim(implode('/', $argv));
 
                 unset($argv);
-
-                $open_debug = false;
             }
             else
             {
@@ -329,74 +408,7 @@ final class Bootstrap
                     # 输出文件头
                     header('Content-Type: text/html;charset='.self::$config['core']['charset']);
                 }
-
-                if ( IS_SYSTEM_MODE )
-                {
-                    # 系统内部请求
-                    if ( isset($_SERVER['HTTP_X_MYQEE_SYSTEM_DEBUG']) && $_SERVER['HTTP_X_MYQEE_SYSTEM_DEBUG']=='1' )
-                    {
-                        $open_debug = true;
-                    }
-                    else
-                    {
-                        $open_debug = false;
-                    }
-                }
-                else
-                {
-                    /**
-                     * 判断是否开启了在线调试
-                     *
-                     * @return boolean
-                     */
-                    $is_online_debug = function ()
-                    {
-                        if (!isset($_COOKIE['_debug_open'])) return false;
-                        if (!isset(Bootstrap::$config['core']['debug_open_password'])) return false;
-                        if (!is_array(Bootstrap::$config['core']['debug_open_password']))return false;
-
-                        foreach ( Bootstrap::$config['core']['debug_open_password'] as $user=>$pass )
-                        {
-                            if ($_COOKIE['_debug_open'] == Bootstrap::get_debug_hash($user,$pass))
-                            {
-                                return true;
-                            }
-                        }
-
-                        return false;
-                    };
-
-                    # DEBUG配置
-                    if ( $is_online_debug() )
-                    {
-                        $open_debug = true;
-                    }
-                    elseif ( isset( self::$config['core']['local_debug_cfg'] ) && self::$config['core']['local_debug_cfg'] )
-                    {
-                        if ( function_exists( 'get_cfg_var' ) )
-                        {
-                            $open_debug = get_cfg_var( self::$config['core']['local_debug_cfg'] ) ? true : false;
-                        }
-                        else
-                        {
-                            $open_debug = false;
-                        }
-                    }
-                    else
-                    {
-                        $open_debug = false;
-                    }
-
-                    unset($is_online_debug);
-                }
             }
-
-            /**
-             * 是否开启DEBUG模式
-             *
-             * @var boolean
-             */
-            define('IS_DEBUG', $open_debug);
 
             # 设置页面错误等级
             if (isset(self::$config['core']['error_reporting']))
@@ -976,26 +988,28 @@ final class Bootstrap
 
                 if (is_file($config_file))
                 {
+                    unset(self::$config['core']);
                     $include_file(self::$config , $config_file);
-                    self::$config['core'] = $core_config;            // 避免Core配置被修改
+                    self::$config['core'] = $core_config;                    // 避免Core配置被修改
                 }
 
-                # 读取DEBUG配置
+                # 本地DEBUG
                 if ( isset(self::$config['core']['debug_config']) && self::$config['core']['debug_config'] && is_file($dir.'debug.config'.EXT) )
                 {
+                    unset(self::$config['core']);
                     $include_file(self::$config , $dir.'debug.config'.EXT);
-                    self::$config['core'] = $core_config;
+                    self::$config['core'] = $core_config;                    // 避免Core配置被修改
                 }
 
                 # 合并目录
                 self::$include_path = array_merge($appliction, array($ns=>$dir), self::$include_path);
 
-                if (defined('IS_DEBUG') && true===IS_DEBUG && class_exists('Core',false) && class_exists('Debug',false) )Core::debug()->info('import a new library: '.Core::debug_path($dir));
+                if ( IS_DEBUG && class_exists('Core',false) && class_exists('Debug',false) )Core::debug()->info('import a new library: '.Core::debug_path($dir));
                 return true;
             }
             else
             {
-                if (defined('IS_DEBUG') && true===IS_DEBUG && class_exists('Core',false) && class_exists('Debug',false) )Core::debug()->error('the library ('.Core::debug_path($dir).') dir do not exists.');
+                if ( IS_DEBUG && class_exists('Core',false) && class_exists('Debug',false) )Core::debug()->error('the library ('.Core::debug_path($dir).') dir do not exists.');
                 return false;
             }
         }
@@ -1041,6 +1055,7 @@ final class Bootstrap
         {
             $uri_arr = array('');
         }
+
         if (IS_DEBUG)
         {
             Core::debug()->log($uri,'find controller uri');
