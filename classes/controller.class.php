@@ -128,13 +128,10 @@ class Controller
             # 输出内容
             \View::factory(static::$message_view,array('msg'=>$msg,'data'=>$data,'code'=>$code))->render();
 
-            # 获取当前实例化控制器对象
-            $controller = static::current_controller();
-
             # 后置方法
-            if ( \method_exists($controller,'after') )
+            if ( \method_exists($this,'after') )
             {
-                $controller->after();
+                $this->after();
             }
         }
 
