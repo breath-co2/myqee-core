@@ -135,8 +135,9 @@ class Database_Driver_MySQL extends \Database_Driver
             }
             else
             {
-                $hostconfig = array(
-                        $hostname
+                $hostconfig = array
+                (
+                    $hostname
                 );
             }
 
@@ -188,8 +189,9 @@ class Database_Driver_MySQL extends \Database_Driver
                     {
                         $tmplink = \mysql_pconnect($hostname . ($port && $port != 3306 ? ':' . $port : ''), $username, $password);
                     }
+                    if (false===$tmplink)throw new \Exception('connect mysql server error:'.$hostname);
 
-                    \Core::debug()->info('mysql '.$hostname.' connection time:' . (\microtime(true) - $time));
+                    \Core::debug()->info('mysql '.$username.'@'.$hostname.' connection time:' . (\microtime(true) - $time));
 
                     # 连接ID
                     $this->_connection_ids[$this->_connection_type] = $_connection_id;
@@ -473,7 +475,7 @@ class Database_Driver_MySQL extends \Database_Driver
             }
             else if (\is_string($use_connection_type))
             {
-                if (!\preg_match('#^[a-z0-9]+$#i',$use_connection_type))$use_connection_type = 'master';
+                if (!\preg_match('#^[a-z0-9_]+$#i',$use_connection_type))$use_connection_type = 'master';
             }
             else
             {
@@ -494,7 +496,7 @@ class Database_Driver_MySQL extends \Database_Driver
         # 记录调试
         if( \IS_DEBUG )
         {
-            \Core::debug()->info('SQL:' . $sql);
+            \Core::debug()->info($sql,'MySQL');
 
             static $is_sql_debug = null;
 
@@ -593,8 +595,8 @@ class Database_Driver_MySQL extends \Database_Driver
             // Return a list of insert id and rows created
             return array
             (
-                    \mysql_insert_id($connection),
-                    \mysql_affected_rows($connection)
+                \mysql_insert_id($connection),
+                \mysql_affected_rows($connection)
             );
         }
         elseif ( $type === 'UPDATE' || $type === 'DELETE' )
@@ -842,6 +844,7 @@ class Database_Driver_MySQL extends \Database_Driver
                     if ($part !== '*')
                     {
                         // Quote each of the parts
+					    $this->_change_charset($part);
                         $part = $this->_identifier.$part.$this->_identifier;
                     }
                 }
@@ -850,17 +853,16 @@ class Database_Driver_MySQL extends \Database_Driver
             }
             else
             {
+			    $this->_change_charset($column);
                 $column = $this->_identifier.$column.$this->_identifier;
             }
         }
 
         if ( isset($alias) )
         {
+		    $this->_change_charset($alias);
             $column .= ' AS '.$this->_identifier.$alias.$this->_identifier;
         }
-
-        # 切换编码
-        $this->_change_charset($column);
 
         return $column;
     }

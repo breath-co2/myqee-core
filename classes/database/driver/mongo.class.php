@@ -179,7 +179,7 @@ class Database_Driver_Mongo extends Database_Driver
                         $tmplink = new \Mongo("mongodb://{$hostname}:{$port}/");
                     }
 
-                    Core::debug()->info('MongoDB '.$hostname.':'.$port.' connection time:' . (\microtime(true) - $time));
+                    Core::debug()->info('MongoDB '.($username?$username.'@':'').$hostname.':'.$port.' connection time:' . (\microtime(true) - $time));
 
                     # 连接ID
                     $this->_connection_ids[$this->_connection_type] = $_connection_id;
@@ -297,6 +297,9 @@ class Database_Driver_Mongo extends Database_Driver
 
             if ( \count($builder['values'])>1 )
             {
+                # 批量插入
+                $sql['type'] = 'batchinsert';
+
                 foreach ($builder['columns'] as $key=>$field)
                 {
                     foreach ($builder['values'] as $k=>$v)
@@ -304,10 +307,11 @@ class Database_Driver_Mongo extends Database_Driver
                         $data[$k][$field] = $builder['values'][$k][$key];
                     }
                 }
-                $sql['datas'] = $data;
+                $sql['data'] = $data;
             }
             else
             {
+                # 单条插入
                 foreach ($builder['columns'] as $key=>$field)
                 {
                     $data[$field] = $builder['values'][0][$key];
@@ -346,6 +350,15 @@ class Database_Driver_Mongo extends Database_Driver
                 $sql['data'][$op][$item[0]] = $item[1];
             }
         }
+        elseif ( $type == 'delete' )
+        {
+            $sql = array
+            (
+                'type'    => 'remove',
+                'table'   => $builder['table'],
+                'where'   => $where,
+            );
+        }
         else
         {
             $sql = array
@@ -379,7 +392,15 @@ class Database_Driver_Mongo extends Database_Driver
                     {
                         if ($item instanceof \Database_Expression)
                         {
-                            $s[$item->value()] = 1;
+                            $v = $item->value();
+                            if ($v==='COUNT(1) AS `total_row_count`')
+                            {
+                                $sql['total_count'] = true;
+                            }
+                            else
+                            {
+                                $s[$v] = 1;
+                            }
                         }
                         elseif ($item instanceof \MongoCode)
                         {
@@ -409,8 +430,10 @@ class Database_Driver_Mongo extends Database_Driver
             {
                 foreach ($builder['group_by'] as $item)
                 {
-                    $sql['group']['keys'][$item] = true;
+                    $sql['group']['key'][$item] = true;
                 }
+
+                $sql['group']['initial'] = array('_count'=>0);
 
                 if ($sql['code'] && $sql['code'] instanceof \MongoCode)
                 {
@@ -420,22 +443,26 @@ class Database_Driver_Mongo extends Database_Driver
                 {
                     $reduce = '';
                 }
-                $reduce = new \MongoCode('function(obj,prve){prve._count++;'.$reduce.'}');
+                if (isset($sql['total_count']) && $sql['total_count'])
+                {
+                    $reduce = new \MongoCode('function(obj,prve){prve._count++;if(!prve.total_count)prve.total_count=0;prve.total_count++;'.$reduce.'}');
+                }
+                else
+                {
+                    $reduce = new \MongoCode('function(obj,prve){prve._count++;'.$reduce.'}');
+                }
 
                 $sql['group']['reduce'] = $reduce;
 
-
-                $sql['group']['option'] = array();
-
-                if ($sql['where'])
+                if ( $sql['where'] )
                 {
-                    if (\is_object($sql['where']) && $sql['where'] instanceof \MongoCode)
+                    if ( \is_object($sql['where']) && $sql['where'] instanceof \MongoCode )
                     {
-                        $sql['group']['option']['finalize'] = $sql['where'];
+                        $sql['group']['finalize'] = $sql['where'];
                     }
                     else
                     {
-                        $sql['group']['option']['condition'] = $sql['where'];
+                        $sql['group']['cond'] = $sql['where'];
                     }
                 }
             }
@@ -499,18 +526,21 @@ class Database_Driver_Mongo extends Database_Driver
             'EXPLAIN',  //分析
             'DESCRIBE', //显示结结构
             'INSERT',
+            'BATCHINSERT',
             'REPLACE',
             'SAVE',
             'UPDATE',
             'REMOVE',
         );
 
-        if (!\in_array($type, $typeArr))
-        {
-            $type = 'MASTER';
-        }
-        $slaverType = array('SELECT', 'SHOW', 'EXPLAIN');
-        if ( $type!='MASTER' && \in_array($type, $slaverType) )
+        $slaverType = array
+        (
+            'SELECT',
+            'SHOW',
+            'EXPLAIN'
+        );
+
+        if ( \in_array($type, $slaverType) )
         {
             if ( true===$use_connection_type )
             {
@@ -536,139 +566,217 @@ class Database_Driver_Mongo extends Database_Driver
         # 连接数据库
         $connection = $this->connection();
 
+        if (!$options['table'])
+        {
+            throw new \Exception('查询条件中缺少Collection');
+        }
+
         $tablename = $this->config['table_prefix'] . $options['table'];
 
-        switch ( $type )
+        if( \IS_DEBUG )
         {
-            case 'SELECT':
-                if ($options['group'])
-                {
-                    # group by
-                    $result = $connection->selectCollection($tablename)->group($options['group']['keys'],array('_count'=>0),$options['group']['reduce'],$options['group']['option']);
-
-                    if ($result && $result['ok']==1)
+            static $is_sql_debug = null;
+        
+            if ( null === $is_sql_debug ) $is_sql_debug = (bool)\Core::debug()->profiler('sql')->is_open();
+        
+            if ( $is_sql_debug )
+            {
+                $host = $this->_get_hostname_by_connection_hash($this->connection_id());
+                $benchmark = \Core::debug()->profiler('sql')->start('Database','mongodb://'.($host['username']?$host['username'].'@':'') . $host['hostname'] . ($host['port'] && $host['port'] != '27017' ? ':' . $host['port'] : ''));
+            }
+        }
+        
+        try
+        {
+            switch ( $type )
+            {
+                case 'SELECT':
+                    if ($options['group'])
                     {
-                        return new \Database_Driver_Mongo_Result(new \ArrayIterator($result['retval']), $options, $as_object ,$this->config );
+                        # group by
+        
+                        $option = array();
+                        if ($options['group']['cond'])
+                        {
+                            $option['condition'] = $options['group']['cond'];
+                        }
+        
+                        if ($options['group']['finalize'])
+                        {
+                            $option['finalize'] = $options['group']['finalize'];
+                        }
+        
+                        $result = $connection->selectCollection($tablename)->group($options['group']['key'],$options['group']['initial'],$options['group']['reduce'],$option);
+
+                        $last_query = 'db.'.$tablename.'.group({"key":'.\json_encode($options['group']['key']).', "initial":'.\json_encode($options['group']['initial']).', "reduce":'.(string)$options['group']['reduce'].', '.(isset($options['group']['finalize'])&&$options['group']['finalize']?'"finalize":'.(string)$options['group']['finalize']:'"cond":'.\json_encode($options['group']['cond'])).'})';
+
+                        if ($result && $result['ok']==1)
+                        {
+                            $rs = new \Database_Driver_Mongo_Result(new \ArrayIterator($result['retval']), $options, $as_object ,$this->config );
+                        }
+                        else
+                        {
+                            throw new \Exception($result['errmsg']);
+                        }
                     }
                     else
                     {
-                        throw new \Exception($result['errmsg']);
-                    }
-                }
-                else
-                {
-                    $last_query = 'db.'.$tablename.'.find(';
-                    $last_query .= $options['where']?\json_encode($options['where']):'{}';
-                    $last_query .= $options['select']?','.\json_encode($options['select']):'';
-                    $last_query .= ')';
+                        $last_query = 'db.'.$tablename.'.find(';
+                        $last_query .= $options['where']?\json_encode($options['where']):'{}';
+                        $last_query .= $options['select']?','.\json_encode($options['select']):'';
+                        $last_query .= ')';
 
-                    if( \IS_DEBUG )
-                    {
-                        static $is_sql_debug = null;
+                        $result = $connection->selectCollection($tablename)->find($options['where'],(array)$options['select']);
 
-                        if ( null === $is_sql_debug ) $is_sql_debug = (bool)\Core::debug()->profiler('sql')->is_open();
-
-                        if ( $is_sql_debug )
+                        if ( $options['total_count'] )
                         {
-                            $host = $this->_get_hostname_by_connection_hash($this->connection_id());
-                            $benchmark = \Core::debug()->profiler('sql')->start('Database','mongodb://'.($host['username']?$host['username'].'@':'') . $host['hostname'] . ($host['port'] && $host['port'] != '27017' ? ':' . $host['port'] : ''));
+                            $result = $result->count();
+                            # 仅统计count
+                            $rs = new \Database_Driver_Mongo_Result(new \ArrayIterator( array(array('total_row_count'=>$result)) ), $options, $as_object ,$this->config );
+                        }
+                        else
+                        {
+                            if ( $options['sort'] )
+                            {
+                                $last_query .= '.sort('.\json_encode($options['sort']).')';
+                                $result = $result->sort($options['sort']);
+                            }
+                        
+                            if ( $options['skip'] )
+                            {
+                                $last_query .= '.skip('.\json_encode($options['skip']).')';
+                                $result = $result->skip($options['skip']);
+                            }
+                        
+                            if ( $options['limit'] )
+                            {
+                                $last_query .= '.limit('.\json_encode($options['limit']).')';
+                                $result = $result->limit($options['limit']);
+                            }
+                        
+                            $rs = new \Database_Driver_Mongo_Result($result, $options, $as_object ,$this->config );
                         }
                     }
-
-                    $result = $connection->selectCollection($tablename)->find($options['where'],(array)$options['select']);
-
-                    if ( $options['limit'] )
+        
+                    break;
+                case 'UPDATE':
+                    $result = $connection->selectCollection($tablename)->update($options['where'] , $options['data'] , $options['options']);
+                    $rs = $result['n'];
+                    $last_query = 'db.'.$tablename.'.update('.\json_encode($options['where']).','.\json_encode($options['data']).')';
+                    break;
+                case 'SAVE':
+                case 'INSERT':
+                case 'BATCHINSERT':
+                    $fun = \strtolower($type);
+                    $result = $connection->selectCollection($tablename)->$fun($options['data'] , $options['options']);
+        
+                    if ($type=='BATCHINSERT')
                     {
-                        $last_query .= '.limit('.\json_encode($options['limit']).')';
-                        $result = $result->limit($options['limit']);
+                        # 批量插入
+                        $rs = array
+                        (
+                            '',
+                            \count($options['data']),
+                        );
                     }
-
-                    if ( $options['skip'] )
+                    elseif ( isset($result['data']['_id']) && $result['data']['_id'] instanceof \MongoId )
                     {
-                        $last_query .= '.skip('.\json_encode($options['skip']).')';
-                        $result = $result->skip($options['skip']);
+                        $rs = array
+                        (
+                            (string)$result['data']['_id'] ,
+                            1 ,
+                        );
                     }
-                    if ( $options['sort'] )
+                    else
                     {
-                        $last_query .= '.sort('.\json_encode($options['sort']).')';
-                        $result = $result->sort($options['sort']);
+                        $rs = array
+                        (
+                            '',
+                            0,
+                        );
                     }
-
-                    $this->last_query = $last_query;
-
-                    # 记录调试
-                    if( \IS_DEBUG )
+        
+                    if ($type=='BATCHINSERT')
                     {
-                        \Core::debug()->info($last_query,'MongoDB');
-
-                        if ( isset($benchmark) )
+                        $last_query = '';
+                        foreach ($options['data'] as $d)
                         {
-                            if ( $is_sql_debug )
-                            {
-                                $data = array();
-                                $data[0]['db']              = $host['hostname'] . '/' . $this->config['connection']['database'] . '/';
-                                $data[0]['cursor']          = '';
-                                $data[0]['nscanned']        = '';
-                                $data[0]['nscannedObjects'] = '';
-                                $data[0]['n']               = '';
-                                $data[0]['millis']          = '';
-                                $data[0]['row']             = \count($result);
-                                $data[0]['query']           = '';
-                                $data[0]['nYields']         = '';
-                                $data[0]['nChunkSkips']     = '';
-                                $data[0]['isMultiKey']      = '';
-                                $data[0]['indexOnly']       = '';
-                                $data[0]['indexBounds']     = '';
-
-                                if ( $type=='SELECT' )
-                                {
-                                    $re = $result->explain();
-                                    foreach ($re as $k=>$v)
-                                    {
-                                        $data[0][$k] = $v;
-                                    }
-                                }
-
-                                $data[0]['query'] = $last_query;
-                            }
-                            else
-                            {
-                                $data = null;
-                            }
-
-                            \Core::debug()->profiler('sql')->stop($data);
+                            $last_query .= 'db.'.$tablename.'.insert('.\json_encode($d).');'."\n";
                         }
+                        $last_query = \trim($last_query);
                     }
-
-                    return new \Database_Driver_Mongo_Result($result, $options, $as_object ,$this->config );
-                }
-            case 'UPDATE':
-                $result = $connection->selectCollection($tablename)->update($options['where'] , $options['data'] , $options['options']);
-                return $result['n'];
-            case 'SAVE':
-            case 'INSERT':
-                $fun = \strtolower($type);
-                $result = $connection->selectCollection($tablename)->$fun($options['data'] , $options['options']);
-                if ( isset($options['data']['_id']) && $options['data']['_id'] instanceof \MongoId )
-                    return array
-                    (
-                        (string)$options['data']['_id'] ,
-                        1 ,
-                    );
-                else
-                {
-                    return array
-                    (
-                        '',
-                        0,
-                    );
-                }
-            case 'REMOVE':
-                $result = $connection->selectCollection($tablename)->remove($options['data'] , $options['options']);
-                return $result['n'];
-            default:
-                throw new \Exception('不支持的操作类型');
+                    else
+                    {
+                        $last_query = 'db.'.$tablename.'.'.$fun.'('.\json_encode($options['data']).')';
+                    }
+                    break;
+                case 'REMOVE':
+                    $result = $connection->selectCollection($tablename)->remove($options['where']);
+                    $rs = $result['n'];
+        
+                    $last_query = 'db.'.$tablename.'.remove('.\json_encode($options['where']).')';
+                    break;
+                default:
+                    throw new \Exception('不支持的操作类型');
+            }
         }
+        catch (\Exception $e)
+        {
+            if( \IS_DEBUG && isset($benchmark) )
+            {
+                \Core::debug()->profiler('sql')->stop();
+            }
+        
+            throw $e;
+        }
+
+        $this->last_query = $last_query;
+
+        # 记录调试
+        if( \IS_DEBUG )
+        {
+            \Core::debug()->info($last_query,'MongoDB');
+        
+            if ( isset($benchmark) )
+            {
+                if ( $is_sql_debug )
+                {
+                    $data = array();
+                    $data[0]['db']              = $host['hostname'] . '/' . $this->config['connection']['database'] . '/';
+                    $data[0]['cursor']          = '';
+                    $data[0]['nscanned']        = '';
+                    $data[0]['nscannedObjects'] = '';
+                    $data[0]['n']               = '';
+                    $data[0]['millis']          = '';
+                    $data[0]['row']             = \count($result);
+                    $data[0]['query']           = '';
+                    $data[0]['nYields']         = '';
+                    $data[0]['nChunkSkips']     = '';
+                    $data[0]['isMultiKey']      = '';
+                    $data[0]['indexOnly']       = '';
+                    $data[0]['indexBounds']     = '';
+
+                    if ( $type=='SELECT' && !$options['group'] )
+                    {
+                        $re = $result->explain();
+                        foreach ($re as $k=>$v)
+                        {
+                            $data[0][$k] = $v;
+                        }
+                    }
+
+                    $data[0]['query'] = $last_query;
+                }
+                else
+                {
+                    $data = null;
+                }
+
+                \Core::debug()->profiler('sql')->stop($data);
+            }
+        }
+
+        return $rs;
     }
 
     protected static function _compile_set_data( $op, $value , $parameters )
@@ -774,11 +882,11 @@ class Database_Driver_Mongo extends Database_Driver
 
             if (\substr($value,-1)=='%')
             {
-                $value = \substr($value,0,-1) . '/';
+                $value = \substr($value,0,-1) . '/i';
             }
             else
             {
-                $value = $value.'$/';
+                $value = $value.'$/i';
             }
 
             $value = \str_replace('%','*',$value);
