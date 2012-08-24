@@ -28,6 +28,7 @@ class File
         \DIR_PROJECT,
         \DIR_APPS,
         \DIR_SYSTEM,
+        \DIR_ASSETS,
     );
 
     /**
@@ -41,6 +42,7 @@ class File
         'wwwroot' => \DIR_WWWROOT,
         'log'     => \DIR_LOG,
         'temp'    => \DIR_TEMP,
+        'assets'  => \DIR_ASSETS,
     );
 
     /**
@@ -300,6 +302,7 @@ class File
             }
             else
             {
+                if (\IS_DEBUG)\Core::debug()->error('create file error:'.Core::debug_path($file));
                 return false;
             }
         }
@@ -325,8 +328,16 @@ class File
         {
             if (!\is_dir($dir))
             {
-                $temp = \explode('/', \str_replace('\\', '/', $dir) );
-                $cur_dir = "";
+                if ( \substr($dir,0,\strlen(\DIR_SYSTEM))==\DIR_SYSTEM )
+                {
+                    $temp = \explode('/', \str_replace('\\', '/', \substr($dir,\strlen(\DIR_SYSTEM)) ) );
+                    $cur_dir = \DIR_SYSTEM;
+                }
+                else
+                {
+                    $temp = \explode('/', \str_replace('\\', '/', $dir) );
+                    $cur_dir = '';
+                }
                 for( $i = 0; $i < \count($temp); $i ++ )
                 {
                     $cur_dir .= $temp[$i] . '/';
@@ -368,16 +379,35 @@ class File
             {
                 if (\is_array($file))
                 {
+                    $rs = true;
                     foreach ($file as $f)
                     {
-                        if (\is_file($f))\unlink($f);
+                        if (\is_file($f))
+                        {
+                            if (!\unlink($f))
+                            {
+                                $rs = false;
+                                break;
+                            }
+                        }
                     }
+                    return $rs;
                 }
                 else
                 {
-                    if (\is_file($file))\unlink($file);
+                    if (\is_file($file))
+                    {
+                        return \unlink($file);
+                    }
+                    elseif (\is_dir($file))
+                    {
+                        return false;
+                    }
+                    else
+                    {
+                        return true;
+                    }
                 }
-                return true;
             }
             catch (\Exception $e)
             {
@@ -445,8 +475,8 @@ class File
      */
     public static function move_dir($fromdir, $todir, $autocoverageold = true , $storage = 'default')
     {
-        $fromdir = \rtrim($fromdir,'\\/').DS;
-        $todir   = \rtrim($todir,'\\/')  .DS;
+        $fromdir = \rtrim($fromdir,'\\/').\DS;
+        $todir   = \rtrim($todir,'\\/')  .\DS;
 
         if ( $fromdir==$todir ) return array(0,0);
 
@@ -529,8 +559,8 @@ class File
      */
     public static function copy_dir($fromdir, $todir, $autocoverageold = true , $storage = 'default')
     {
-        $fromdir = \rtrim($fromdir,'\\/').DS;
-        $todir   = \rtrim($todir,'\\/')  .DS;
+        $fromdir = \rtrim($fromdir,'\\/').\DS;
+        $todir   = \rtrim($todir,'\\/')  .\DS;
 
         if ( $fromdir==$todir ) return array(0,0);
 
@@ -602,7 +632,7 @@ class File
      * Split a file into pieces matching a specific size. Used when you need to
      * split large files into smaller pieces for easy transmission.
      *
-     *     $count = static::split($file);
+     *     $count = File::split($file);
      *
      * @param string   file to be split
      * @param string   directory to output to, defaults to the same directory as the file
@@ -872,12 +902,18 @@ class File
 
         $rs = \call_user_func_array(array(\HttpCall::factory($storage), $action), $param_arr);
 
+        if (\IS_DEBUG)\Core::debug()->log($rs);
+
         if ( \is_array($rs) )
         {
             foreach ( $rs as $item )
             {
-                if ( $item === false ) return false;
+                if ( $item !== 'success' ) return false;
             }
+        }
+        else
+        {
+            return $rs==='success'?true:false;
         }
 
         return $rs;
@@ -916,15 +952,42 @@ class File
      */
     protected static function check_and_get_path($file)
     {
-        foreach (static::$dir as $key=>$path)
-        {
-            $len = \strlen($path);
-            $s = \substr($file,0,$len);
-            if ($s == $path)
-            {
-                return array($key,\substr($file,$len));
-            }
-        }
+        if (\is_array($file))
+	    {
+	        $array_mode = true;
+	    }
+	    else
+	    {
+	        $array_mode = false;
+	        $file = (array)$file;
+	    }
+
+	    $data = array();
+	    foreach (static::$dir as $key=>$path)
+	    {
+	        $len = \strlen($path);
+	        foreach ($file as $f)
+	        {
+    	        $s = \substr($f,0,$len);
+    	        if ($s == $path)
+    	        {
+    	            if (!$array_mode)
+    	            {
+    	                # 单文件模式，直接返回
+    	                return array($key,\substr($f,$len));
+    	            }
+    	            else
+    	            {
+    	                # 多文件，加入列表
+        	            $data[0][] = $key;
+        	            $data[1][] = \substr($f,$len);
+    	            }
+    	        }
+	        }
+	    }
+
+	    if ($array_mode && $data)return $data;
+        
 
         throw new \Exception('不允许操作对应的目录');
     }
