@@ -28,6 +28,13 @@ class Cache
     const DRIVER_FILE = 'File';
 
     /**
+     * 驱动类型为Redis
+     *
+     * @var string
+     */
+    const DRIVER_REDIS = 'Redis';
+
+    /**
      * 驱动类型为APC
      *
      * @var string
@@ -35,14 +42,21 @@ class Cache
     const DRIVER_APC = 'Apc';
 
     /**
-     * 驱动类型为APC
+     * 驱动类型为Database
      *
      * @var string
      */
     const DRIVER_DATABASE = 'Database';
 
     /**
-     * 驱动类型为APC
+     * 驱动类型为SQLite
+     *
+     * @var string
+     */
+    const DRIVER_SQLITE = 'SQLite';
+
+    /**
+     * 驱动类型为WinCache
      *
      * @var string
      */
@@ -66,7 +80,7 @@ class Cache
      * 高级时效缓存类型
      *
      * 缓存类型为在有效时间范围内介于某个时间随机更新
-     * @example $this->set('key','value','200~250,1/100',static::TYPE_RENEW_AGE); 表示介于200～250秒之间时命中率为1/100，若命中则更新缓存
+     * @example $this->set('key','value','200~250,1/100',\Cache::TYPE_RENEW_AGE); 表示介于200～250秒之间时命中率为1/100，若命中则更新缓存
      * @var string
      */
     const TYPE_ADV_AGE = 'renew_age';
@@ -470,7 +484,7 @@ class Cache
             {
                 $lifestr = ((int)$expire / 2) . '~' . $expire . ',1/100';
             }
-            $value = '__::foRMat_Cache::Type=' . $type . ',ExpKey=' . $exp_key . ',Exp=' . $lifestr . ',SaveTime=' . \TIME . ',Value=' . \serialize($value);
+            $value = '__::foRMat_CacHe::Type=' . $type . ',ExpKey=' . $exp_key . ',Exp=' . $lifestr . ',SaveTime=' . \TIME . ',Value=' . \serialize($value);
 
             if ( $type == static::TYPE_ADV_HIT || $type == static::TYPE_MAX_HIT )
             {
@@ -493,7 +507,7 @@ class Cache
 
     protected function _get_adv_data(&$value)
     {
-        if ( \substr($value, 0, 18) == '__::foRMat_Cache::' && \preg_match('#^__::foRMat_Cache::Type=(?P<type>[a-z0-9_]+),ExpKey=(?P<expkey>[a-f0-9]{32}),Exp=(?P<exp>[0-9,~/]+),SaveTime=(?P<savetime>[0-9]+),Value=(?P<value>.*)$#', $value, $match) )
+        if ( \substr($value, 0, 18) == '__::foRMat_CacHe::' && \preg_match('#^__::foRMat_CacHe::Type=(?P<type>[a-z0-9_]+),ExpKey=(?P<expkey>[a-f0-9]{32}),Exp=(?P<exp>[0-9,~/]+),SaveTime=(?P<savetime>[0-9]+),Value=(?P<value>.*)$#', $value, $match) )
         {
             #200~250,1/100
             if ( ! \preg_match('#^([0-9]+)~([0-9]+),([0-9]+)/([0-9]+)$#', $match['exp'], $match_exp) )

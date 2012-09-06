@@ -370,6 +370,11 @@ class Database_Driver_Mongo extends Database_Driver
                 'skip'  => $builder['offset'],
             );
 
+            if ( $builder['distinct'] )
+            {
+                $sql['distinct'] = $builder['distinct'];
+            }
+
             // 查询
             if ( $builder['select'] )
             {
@@ -576,36 +581,59 @@ class Database_Driver_Mongo extends Database_Driver
         if( \IS_DEBUG )
         {
             static $is_sql_debug = null;
-        
+
             if ( null === $is_sql_debug ) $is_sql_debug = (bool)\Core::debug()->profiler('sql')->is_open();
-        
+
             if ( $is_sql_debug )
             {
                 $host = $this->_get_hostname_by_connection_hash($this->connection_id());
                 $benchmark = \Core::debug()->profiler('sql')->start('Database','mongodb://'.($host['username']?$host['username'].'@':'') . $host['hostname'] . ($host['port'] && $host['port'] != '27017' ? ':' . $host['port'] : ''));
             }
         }
-        
+
         try
         {
             switch ( $type )
             {
                 case 'SELECT':
-                    if ($options['group'])
+
+                    if ( $options['distinct'] )
+                    {
+                        # 查询唯一值
+                        $result = $connection->command(
+                            array(
+                                'distinct' => $tablename,
+                                'key'      => $options['distinct'] ,
+                                'query'    => $options['where']
+                            )
+                        );
+
+                        $last_query = 'db.'.$tablename.'.distinct('.$options['distinct'].', '.\json_encode($options['where']).')';
+
+                        if ( $result && $result['ok']==1 )
+                        {
+                            $rs = new \Database_Driver_Mongo_Result(new \ArrayIterator($result['values']), $options, $as_object ,$this->config );
+                        }
+                        else
+                        {
+                            throw new \Exception($result['errmsg']);
+                        }
+                    }
+                    elseif ( $options['group'] )
                     {
                         # group by
-        
+
                         $option = array();
                         if ($options['group']['cond'])
                         {
                             $option['condition'] = $options['group']['cond'];
                         }
-        
+
                         if ($options['group']['finalize'])
                         {
                             $option['finalize'] = $options['group']['finalize'];
                         }
-        
+
                         $result = $connection->selectCollection($tablename)->group($options['group']['key'],$options['group']['initial'],$options['group']['reduce'],$option);
 
                         $last_query = 'db.'.$tablename.'.group({"key":'.\json_encode($options['group']['key']).', "initial":'.\json_encode($options['group']['initial']).', "reduce":'.(string)$options['group']['reduce'].', '.(isset($options['group']['finalize'])&&$options['group']['finalize']?'"finalize":'.(string)$options['group']['finalize']:'"cond":'.\json_encode($options['group']['cond'])).'})';
@@ -641,23 +669,23 @@ class Database_Driver_Mongo extends Database_Driver
                                 $last_query .= '.sort('.\json_encode($options['sort']).')';
                                 $result = $result->sort($options['sort']);
                             }
-                        
+
                             if ( $options['skip'] )
                             {
                                 $last_query .= '.skip('.\json_encode($options['skip']).')';
                                 $result = $result->skip($options['skip']);
                             }
-                        
+
                             if ( $options['limit'] )
                             {
                                 $last_query .= '.limit('.\json_encode($options['limit']).')';
                                 $result = $result->limit($options['limit']);
                             }
-                        
+
                             $rs = new \Database_Driver_Mongo_Result($result, $options, $as_object ,$this->config );
                         }
                     }
-        
+
                     break;
                 case 'UPDATE':
                     $result = $connection->selectCollection($tablename)->update($options['where'] , $options['data'] , $options['options']);
@@ -669,7 +697,7 @@ class Database_Driver_Mongo extends Database_Driver
                 case 'BATCHINSERT':
                     $fun = \strtolower($type);
                     $result = $connection->selectCollection($tablename)->$fun($options['data'] , $options['options']);
-        
+
                     if ($type=='BATCHINSERT')
                     {
                         # 批量插入
@@ -695,7 +723,7 @@ class Database_Driver_Mongo extends Database_Driver
                             0,
                         );
                     }
-        
+
                     if ($type=='BATCHINSERT')
                     {
                         $last_query = '';
@@ -713,7 +741,7 @@ class Database_Driver_Mongo extends Database_Driver
                 case 'REMOVE':
                     $result = $connection->selectCollection($tablename)->remove($options['where']);
                     $rs = $result['n'];
-        
+
                     $last_query = 'db.'.$tablename.'.remove('.\json_encode($options['where']).')';
                     break;
                 default:
@@ -726,7 +754,7 @@ class Database_Driver_Mongo extends Database_Driver
             {
                 \Core::debug()->profiler('sql')->stop();
             }
-        
+
             throw $e;
         }
 
@@ -736,7 +764,7 @@ class Database_Driver_Mongo extends Database_Driver
         if( \IS_DEBUG )
         {
             \Core::debug()->info($last_query,'MongoDB');
-        
+
             if ( isset($benchmark) )
             {
                 if ( $is_sql_debug )
@@ -756,7 +784,7 @@ class Database_Driver_Mongo extends Database_Driver
                     $data[0]['indexOnly']       = '';
                     $data[0]['indexBounds']     = '';
 
-                    if ( $type=='SELECT' && !$options['group'] )
+                    if ( $type=='SELECT' && !$options['group'] && \is_object($result) && \method_exists($result, 'explain') )
                     {
                         $re = $result->explain();
                         foreach ($re as $k=>$v)

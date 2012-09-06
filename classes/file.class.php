@@ -927,7 +927,11 @@ class File
     protected static function sync_mode()
     {
         static $mode = null;
-        if ( null === $mode ) $mode = \Core::config('core.file_sync_mode');
+        if ( null === $mode )
+        {
+            $mode = \Core::config('core.file_sync_mode');
+            if (null===$mode)$mode = 'default';
+        }
 
         return $mode;
     }

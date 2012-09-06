@@ -310,6 +310,8 @@ abstract class Database_Driver
                 $value = (string)\iconv('UTF-8', $this->config['data_charset'].'//IGNORE', $value);
             }
         }
+
+        return $value;
     }
 
     /**

@@ -880,7 +880,7 @@ class Database_Driver_MySQLI extends \Database_Driver
         // Start a selection query
         $query = 'SELECT ';
 
-        if ( $builder['distinct'] === true )
+        if ( $builder['distinct'] )
         {
             // Select only unique results
             $query .= 'DISTINCT ';

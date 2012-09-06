@@ -105,6 +105,13 @@ define('DIR_LIBRARY', DIR_SYSTEM.'libraries'.DS);
 define('DIR_WWWROOT', DIR_SYSTEM.'wwwroot'.DS);
 
 /**
+ * WWW目录
+ *
+ * @var string
+ */
+define('DIR_ASSETS', DIR_WWWROOT.'assets'.DS);
+
+/**
  * 是否命令行执行
  *
  * @var boolean
@@ -739,7 +746,7 @@ final class Bootstrap
      */
     public static function auto_load($class_name)
     {
-        if (class_exists($class_name,false))return true;
+        if ( class_exists($class_name,false) )return true;
 
         # 移除两边的\
         $class_name = strtolower(trim($class_name,'\\'));
@@ -748,7 +755,7 @@ final class Bootstrap
         if (preg_match('#^(?:(core|library|project)\\\\(?:([0-9a-z_]+)\\\\([0-9a-z_]+)\\\\)?(?:(orm|controller|model)_)?)?([0-9a-z_]+)$#', $class_name,$m))
         {
             # 主命名空间，包括 core,library,project
-            $lib_type = $m[1];
+            $lib_space = $m[1];
 
             # 子命名空间，例如 MyQEE\Test\
             $sub_name_space = '';
@@ -806,12 +813,12 @@ final class Bootstrap
         # 拼接出完整的文件路径
         $file = str_replace('\\',DS,$sub_name_space).self::$dir_setting[$class_prefix][0].DS.$filename.self::$dir_setting[$class_prefix][1].EXT;
 
-        if (is_file($lib_dir_array[$lib_type].$file))
+        if ( is_file($lib_dir_array[$lib_space].$file) )
         {
             # 指定文件存在
-            require $lib_dir_array[$lib_type].$file;
+            require $lib_dir_array[$lib_space].$file;
         }
-        elseif ($lib_type==='')
+        elseif ($lib_space==='')
         {
             # 没有找到文件且为项目类库，尝试在某个命名空间的类库中寻找
             foreach (self::$include_path as $ns=>$path)
@@ -820,30 +827,46 @@ final class Bootstrap
 
                 $ns_class_name = $ns.$the_classname;
 
-                if (self::auto_load($ns_class_name))
+                if ( self::auto_load($ns_class_name) )
                 {
-                    if (class_exists($class_name,false))
+                    if ( class_exists($class_name,false) )
                     {
                         # 在加载$ns_class_name时，当前需要的类库有可能被加载了，直接返回true
                         return true;
                     }
                     else
                     {
-                        $rf = new ReflectionClass($ns_class_name);
-                        if ( $rf->isAbstract() )
+                        # 是否禁用eval方式加载
+                        static $disable_eval = null;
+                        if (null===$disable_eval)$disable_eval = isset(self::$config['core']['disable_eval']) && self::$config['core']['disable_eval'] ? true:false;
+
+                        if ( $disable_eval )
                         {
-                            $abstract = 'abstract ';
+                            $tmp_file = DIR_SYSTEM . ($lib_space ? $lib_space : 'core') . DS . ($sub_name_space?str_replace('/', DS, $sub_name_space) . DS : '') . 'extend_files' . DS . $file;
+
+                            if (is_file($tmp_file))
+                            {
+                                include $tmp_file;
+                            }
                         }
                         else
                         {
-                            $abstract = '';
+                            $rf = new ReflectionClass($ns_class_name);
+                            if ( $rf->isAbstract() )
+                            {
+                                $abstract = 'abstract ';
+                            }
+                            else
+                            {
+                                $abstract = '';
+                            }
+                            unset($rf);
+
+                            $str = 'namespace '.trim($lib_space.'\\'.$sub_name_space,'\\').'{'.$abstract.'class '.$the_classname.' extends '.$ns_class_name.'{}}';
+
+                            # 动态执行
+                            eval($str);
                         }
-                        unset($rf);
-
-                        $str = 'namespace '.trim($lib_type.'\\'.$sub_name_space,'\\').'{'.$abstract.'class '.$the_classname.' extends '.$ns_class_name.'{}}';
-
-                        # 动态执行
-                        eval($str);
                     }
 
                     break;

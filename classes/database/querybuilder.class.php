@@ -56,7 +56,7 @@ class Database_QueryBuilder
      */
     public function distinct($value = true)
     {
-        $this->_builder['distinct'] = (bool)$value;
+        $this->_builder['distinct'] = $value;
 
         return $this;
     }
@@ -115,24 +115,39 @@ class Database_QueryBuilder
     }
 
     /**
-     * Adds or overwrites values. Multiple value sets can be added.
+     * 加入多条数据
+     *
+     *     // 例1
+     *     $v1 = array('k1'=>1,'k2'=>1);
+     *     $v2 = array('k1'=>2,'k2'=>1);
+     *     $v3 = array('k1'=>3,'k2'=>1);
+     *     $db->values($v1,$v2,$v3);        //加入3行数据
+     *
+     *     // 例2
+     *     $values = array();
+     *     $values[] = array('k1'=>1,'k2'=>1);
+     *     $values[] = array('k1'=>2,'k2'=>1);
+     *     $values[] = array('k1'=>3,'k2'=>1);
+     *     $db->values($values);            //加入3行数据,等同上面的效果
      *
      * @param   array   values list
      * @param   ...
-     * @return \Database
+     * @return  Database
      */
     public function values(array $values)
     {
-        if ( ! \is_array($this->_builder['values']) )
+        if ( \is_array($values) && isset($values[0]) && \is_array($values[0]) )
         {
-            throw new \Exception('INSERT INTO ... SELECT statements cannot be combined with INSERT INTO ... VALUES');
+            // 多行数据
+            // $values = $values;
         }
-
-        // Get all of the passed values
-        $values = \func_get_args();
-
+        else
+        {
+            $values = \func_get_args();
+        }
+    
         $this->_builder['values'] = \array_merge($this->_builder['values'], $values);
-
+    
         return $this;
     }
 
@@ -252,11 +267,8 @@ class Database_QueryBuilder
     public function join($table, $type = null)
     {
         $this->_builder['join'][] = array('table' => $table, 'type' => $type, 'on' => array());
-
         \end($this->_builder['join']);
-
         $k = \key($this->_builder['join']);
-
         $this->_last_join = & $this->_builder['join'][$k];
 
         return $this;

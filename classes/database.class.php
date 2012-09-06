@@ -82,7 +82,7 @@ class Database extends \Database_QueryBuilder
      */
     public static function instance($config_name = 'default')
     {
-        if (\is_string($config_name))
+        if ( \is_string($config_name) )
         {
             $i_name = $config_name;
         }
@@ -91,7 +91,7 @@ class Database extends \Database_QueryBuilder
             $i_name = '.config_'.\md5(\serialize($config_name));
         }
 
-        if (!isset(static::$instances[$i_name]))
+        if ( !isset(static::$instances[$i_name]) )
         {
             static::$instances[$i_name] = new \Database($config_name);
         }
@@ -106,13 +106,13 @@ class Database extends \Database_QueryBuilder
      */
     public function __construct($config_name = 'default')
     {
-        if (\is_array($config_name))
+        if ( \is_array($config_name) )
         {
             $this->config = $config_name;
         }
         else
         {
-            $this->config = \Core::config('database.'.$config_name);
+            $this->config = \Core::config('database.' . $config_name);
         }
         $this->config['charset'] = \strtoupper($this->config['charset']);
         if (!isset($this->config['auto_change_charset']))
@@ -153,7 +153,7 @@ class Database extends \Database_QueryBuilder
         parent::__construct();
 
         # 增加自动关闭连接列队
-        \Core::add_close_connect_class('Database');
+        \Core::add_close_connect_class('\\Database');
     }
 
     public function __destruct()
@@ -298,7 +298,7 @@ class Database extends \Database_QueryBuilder
         if ($value)
         {
             $this->columns(\array_keys($value));
-            $this->values(\array_values($value));
+            $this->values($value);
         }
         $sql = $this->compile('insert');
 
@@ -378,7 +378,7 @@ class Database extends \Database_QueryBuilder
         if ($value)
         {
             $this->columns(\array_keys($value));
-            $this->values(\array_values($value));
+            $this->values($value);
         }
         if ($where)
         {
