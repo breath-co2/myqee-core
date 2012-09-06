@@ -16,6 +16,13 @@ class HttpCall
 
     protected $hosts = array();
 
+    /**
+     * 默认连接超时时间，毫秒
+     *
+     * @var int
+     */
+    protected static $connecttimeout_ms = 3000;
+
     public function __construct($group=null)
     {
         if (!$group)$group = 'default';
@@ -116,6 +123,13 @@ class HttpCall
             \preg_match('#^(http(?:s)?\://[^/]+/)#', $_SERVER["SCRIPT_URI"] , $m);
             $uri = $m[1].\ltrim($uri,'/');
         }
+        # http://host/uri
+        $uri_arr = \explode('/',$uri);
+        $scr_arr = \explode('/',$_SERVER["SCRIPT_URI"]);
+
+        $uri_arr[0] = $scr_arr[0];
+        $uri_arr[2] = $scr_arr[2];
+        $uri = \implode('/', $uri_arr);
 
         # 执行开始时间
         $time = \microtime(1);
@@ -135,15 +149,15 @@ class HttpCall
             # 调用socket进行连接
             $result = static::exec_by_socket($hosts,$uri,array('data'=>\serialize($param_arr)));
         }
-        if (\IS_DEBUG)
-        {
-            \Core::debug()->log('system exec time:'.(\microtime(1)-$time));
-            \Core::debug()->log($result,'system exec result');
-        }
 
         # 单条记录
         if ($one)$result = \current($result);
 
+        if (\IS_DEBUG)
+        {
+            \Core::debug()->log('system exec time:'.(\microtime(1)-$time));
+            \Core::debug()->info($result,'system exec result');
+        }
 
         return $result;
     }
@@ -166,37 +180,34 @@ class HttpCall
         $vars = \http_build_query($param_arr);
 
         # 创建列队
-        foreach ( $hosts as $host )
+        foreach ( $hosts as $h )
         {
             # 排除重复HOST
-            if (isset($listener_list[$host]))continue;
+            if (isset($listener_list[$h]))continue;
 
-            list($hostname,$port) = \explode(':',$host,2);
+            list($host,$port) = \explode(':',$h,2);
             if (!$port)
             {
-                if (\substr($url,0,8)=='https://')
-                {
-                    $port = 443;
-                }
-                else
-                {
-                    $port = 80;
-                }
+                # 默认端口
+                $port = $_SERVER["SERVER_PORT"];
             }
 
             # 一个mictime
             $mictime = \microtime(1);
 
+            # 生成一个随机字符串
+            $rstr = \Text::random();
+
             # 生成一个HASH
-            $hash = self::get_hash($vars,$hostname,$port,$mictime);
+            $hash = self::get_hash($vars,$rstr,$mictime);
 
             # 创建一个curl对象
-            $current = static::_create_curl($hostname, $port, $url, 60 , $hash ,$vars,$mictime);
+            $current = static::_create_curl($host, $port, $url, 10, $hash, $vars, $mictime, $rstr);
 
             # 列队数控制
             \curl_multi_add_handle($mh, $current);
 
-            $listener_list[$host] = $current;
+            $listener_list[$h] = $current;
         }
         unset($current);
 
@@ -273,7 +284,7 @@ class HttpCall
      * @param int $timeout 超时时间
      * @return curl_init()
      */
-    protected static function _create_curl($host, $port, $url, $timeout , $hash ,$vars,$mictime)
+    protected static function _create_curl($host, $port, $url, $timeout, $hash, $vars, $mictime, $rstr)
     {
         if (\preg_match('#^(http(?:s)?)\://([^/\:]+)(\:[0-9]+)?/#', $url.'/',$m))
         {
@@ -286,6 +297,7 @@ class HttpCall
         \curl_setopt($ch, \CURLOPT_FOLLOWLOCATION, true);
         \curl_setopt($ch, \CURLOPT_RETURNTRANSFER, true);
         \curl_setopt($ch, \CURLOPT_TIMEOUT, $timeout);
+        \curl_setopt($ch, \CURLOPT_CONNECTTIMEOUT_MS, static::$connecttimeout_ms);
         \curl_setopt($ch, \CURLOPT_POST, true );
         \curl_setopt($ch, \CURLOPT_POSTFIELDS, $vars );
         \curl_setopt($ch, \CURLOPT_DNS_CACHE_TIMEOUT, 86400 );
@@ -303,7 +315,7 @@ class HttpCall
 
         \curl_setopt($ch, \CURLOPT_PORT, $port);
         \curl_setopt($ch, \CURLOPT_USERAGENT, 'MyQEE System Call');
-        \curl_setopt($ch, \CURLOPT_HTTPHEADER, array('Host: '.$m[2],'X-Myqee-System-Hash: '.$hash,'X-Myqee-System-Time: '.$mictime,'X-Myqee-System-Debug: '.(\IS_DEBUG?1:0)));
+        \curl_setopt($ch, \CURLOPT_HTTPHEADER, array('Expect:','Host: '.$m[2],'X-Myqee-System-Hash: '.$hash,'X-Myqee-System-Time: '.$mictime,'X-Myqee-System-Rstr: '.$rstr,'X-Myqee-System-Debug: '.(\IS_DEBUG?1:0)));
 
         return $ch;
     }
@@ -333,21 +345,17 @@ class HttpCall
             list($hostname,$port) = \explode(':',$host,2);
             if (!$port)
             {
-                if (\substr($url,0,8)=='https://')
-                {
-                    $port = 443;
-                }
-                else
-                {
-                    $port = 80;
-                }
+                $port = $_SERVER["SERVER_PORT"];
             }
 
             # 一个mictime
             $mictime = \microtime(1);
 
+            # 生成一个随机字符串
+            $rstr = \Text::random();
+
             # 生成一个HASH
-            $hash = self::get_hash($vars,$hostname,$port,$mictime);
+            $hash = self::get_hash($vars,$rstr,$mictime);
 
             # 使用HTTP协议请求数据
             $str = 'POST ' . $uri . ' HTTP/1.0' . \CRLF
@@ -357,14 +365,16 @@ class HttpCall
             . 'Connection: close' . \CRLF
             . 'X-Myqee-System-Hash: ' . $hash . \CRLF
             . 'X-Myqee-System-Time: ' . $mictime . \CRLF
+            . 'X-Myqee-System-Rstr: ' . $rstr . \CRLF
             . 'X-Myqee-System-Debug: ' . (\IS_DEBUG?1:0) . \CRLF
             . 'Content-Length: ' . \strlen($vars) . \CRLF
             . 'Content-Type: application/x-www-form-urlencoded' . \CRLF
             . \CRLF . $vars;
 
-            for( $i=0 ;$i<3 ;$i++ )
+            for( $i=1 ;$i<3 ;$i++ )
             {
                 if (isset($fs[$host]))break;
+
                 # 尝试连接服务器
                 $ns = \fsockopen($hostname,$port,$errno[$host],$errstr[$host],1);
                 if ($ns)
@@ -429,24 +439,24 @@ class HttpCall
      * 根据参数获取内部请求的HASH
      *
      * @param string $vars
-     * @param string $host
+     * @param string $rstr
      * @param int $port
      * @return string
      */
-    private static function get_hash($vars,$host,$port,$mictime)
+    private static function get_hash($vars,$rstr,$mictime)
     {
         # 系统调用密钥
         $system_exec_pass = \Core::config('core.system_exec_key');
 
-        if ($system_exec_pass)
+        if ($system_exec_pass && \strlen($system_exec_pass) >= 10)
         {
             # 如果有则使用系统调用密钥
-            $hash = \sha1($vars.$mictime.$system_exec_pass.$host);
+            $hash = \sha1($vars.$mictime.$system_exec_pass.$rstr);
         }
         else
         {
             # 没有，则用系统配置和数据库加密
-            $hash = \sha1($vars.$mictime.\serialize(\Core::config('core')).\serialize(\Core::config('database')).$host);
+            $hash = \sha1($vars.$mictime.\serialize(\Core::config('core')).\serialize(\Core::config('database')).$rstr);
         }
 
         return $hash;

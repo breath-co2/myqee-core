@@ -773,7 +773,8 @@ abstract class Core
     {
         $hash = $_SERVER['HTTP_X_MYQEE_SYSTEM_HASH'];    //请求验证HASH
         $time = $_SERVER['HTTP_X_MYQEE_SYSTEM_TIME'];    //请求验证时间
-        if (!$hash||!$time)return false;
+        $rstr = $_SERVER['HTTP_X_MYQEE_SYSTEM_RSTR'];    //请求时的随机字符串
+        if (!$hash||!$time||!$rstr)return false;
 
         # 请求时效检查
         if ( \microtime(1)-$time>600 )
@@ -825,12 +826,12 @@ abstract class Core
         if ($system_exec_pass && \strlen($system_exec_pass)>=10)
         {
             # 如果有则使用系统调用密钥
-            $newhash = \sha1($body.$time.$system_exec_pass.$_SERVER["SERVER_ADDR"]);
+            $newhash = \sha1($body.$time.$system_exec_pass.$rstr);
         }
         else
         {
             # 没有，则用系统配置和数据库加密
-            $newhash = \sha1($body.$time.\serialize(static::config('core')).\serialize(static::config('database')).$_SERVER["SERVER_ADDR"]);
+            $newhash = \sha1($body.$time.\serialize(static::config('core')).\serialize(static::config('database')).$rstr);
         }
 
         if ( $newhash==$hash )
