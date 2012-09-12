@@ -949,7 +949,14 @@ class Database_Driver_Mongo extends Database_Driver
         elseif ( isset($tmp_query[$now_logic]) )
         {
             // 如果有 $and $or 条件，则加入
-            $tmp_query[$now_logic][] = $tmp_option;
+            if ( \is_array($tmp_option) || !$column )
+            {
+                $tmp_query[$now_logic][] = $tmp_option;
+            }
+            else
+            {
+                $tmp_query[$now_logic][] = array($column=>$tmp_option);
+            }
         }
         else if ($column)
         {
@@ -999,20 +1006,14 @@ class Database_Driver_Mongo extends Database_Driver
                     }
 
                 }
-                elseif ( \is_array($tmp_option) || \is_array($tmp_query[$column]) )
+                else
                 {
-                    # 有一个是数组
                     $tmp_query['$and'] = array
                     (
                         array( $column => $tmp_query[$column] ),
                         array( $column => $tmp_option ),
                     );
                     unset($tmp_query[$column]);
-                }
-                else
-                {
-                    # 都是字符串
-                    $tmp_query[$column] = $tmp_option;
                 }
             }
             else
