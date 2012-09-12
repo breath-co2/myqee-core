@@ -199,7 +199,7 @@ final class Bootstrap
      *
      * @var float
      */
-    const VERSION = '2.0.1';
+    const VERSION = '2.0.2';
 
     /**
      * 包含目录
@@ -752,7 +752,7 @@ final class Bootstrap
         $class_name = strtolower(trim($class_name,'\\'));
 
         # 通过正则匹配出相关参数
-        if (preg_match('#^(?:(core|library|project)\\\\(?:([0-9a-z_]+)\\\\([0-9a-z_]+)\\\\)?(?:(orm|controller|model)_)?)?([0-9a-z_]+)$#', $class_name,$m))
+        if (preg_match('#^(?:(core|library|project)\\\\(?:([0-9a-z_]+)\\\\([0-9a-z_]+)\\\\)?)?(?:(orm|controller|model)_)?([0-9a-z_]+)$#i', $class_name,$m))
         {
             # 主命名空间，包括 core,library,project
             $lib_space = $m[1];
@@ -765,14 +765,17 @@ final class Bootstrap
             }
 
             $class_prefix = 'class';
+
+            # 命名空间内的类名称
+            $the_classname = $real_name = $m[5];
+
             if ($m[4])
             {
                 # 前缀，目前包括orm,controller,model,其它均被视为类库
                 $class_prefix = $m[4];
+                $the_classname = $class_prefix.'_'.$the_classname;
             }
 
-            # 命名空间内的类名称
-            $the_classname = $real_name = $m[5];
             if ($class_prefix=='orm')
             {
                 # ORM需要处理下，去掉后缀
@@ -842,9 +845,18 @@ final class Bootstrap
 
                         if ( $disable_eval )
                         {
-                            $tmp_file = DIR_SYSTEM . ($lib_space ? $lib_space : 'core') . DS . ($sub_name_space?str_replace('/', DS, $sub_name_space) . DS : '') . 'extend_files' . DS . $file;
+                            if ( substr($ns,0,9)=='\\library\\' )
+                            {
+                                $dir = 'libraries'.DS.substr($ns,9);
+                            }
+                            else
+                            {
+                                $dir = $ns;
+                            }
 
-                            if (is_file($tmp_file))
+                            $tmp_file = DIR_SYSTEM . trim(str_replace('\\',DS,$dir),DS) . DS . ($sub_name_space?str_replace('\\', DS, $sub_name_space) . DS : '') . 'extend_files' . DS . $file;
+
+                            if ( is_file($tmp_file) )
                             {
                                 include $tmp_file;
                             }
@@ -874,7 +886,7 @@ final class Bootstrap
             }
         }
 
-        if (class_exists($class_name,false))
+        if ( class_exists($class_name,false) )
         {
             return true;
         }
@@ -933,18 +945,7 @@ final class Bootstrap
         # 控制器目录比较特殊，不同模式所在文件夹不一样
         if ('controllers'==$dir)
         {
-            if (IS_SYSTEM_MODE)
-            {
-                $dir .= DS .'[system]';
-            }
-            else if (IS_CLI)
-            {
-                $dir .= DS .'[shell]';
-            }
-            else if (IS_ADMIN_MODE)
-            {
-                $dir .= DS .'[admin]';
-            }
+            $dir = self::$dir_setting['controller'][0];
         }
 
         foreach (self::$include_path as $path)
@@ -1011,7 +1012,6 @@ final class Bootstrap
 
                 if (is_file($config_file))
                 {
-                    unset(self::$config['core']);
                     $include_file(self::$config , $config_file);
                     self::$config['core'] = $core_config;                    // 避免Core配置被修改
                 }
@@ -1019,7 +1019,6 @@ final class Bootstrap
                 # 本地DEBUG
                 if ( isset(self::$config['core']['debug_config']) && self::$config['core']['debug_config'] && is_file($dir.'debug.config'.EXT) )
                 {
-                    unset(self::$config['core']);
                     $include_file(self::$config , $dir.'debug.config'.EXT);
                     self::$config['core'] = $core_config;                    // 避免Core配置被修改
                 }
