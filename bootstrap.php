@@ -1342,10 +1342,20 @@ final class Bootstrap
         $get_path_info = function (& $url)
         {
             static $protocol = null,$protocol_len=0;
-            if (null===$protocol)
+            if ( null===$protocol )
             {
-                if (!empty($_SERVER['HTTPS']) && filter_var($_SERVER['HTTPS'], FILTER_VALIDATE_BOOLEAN))
+                $https_key = \Core::config('core.server_httpson_key');
+                if ($https_key)
                 {
+                    $https_key = strtoupper($https_key);
+                }
+                else
+                {
+                    $https_key = 'HTTPS';
+                }
+                if ( !empty($_SERVER[$https_key]) && filter_var($_SERVER[$https_key], FILTER_VALIDATE_BOOLEAN) )
+                {
+
                     $protocol = 'https://';
                     $protocol_len = 8;
                 }
@@ -1364,7 +1374,7 @@ final class Bootstrap
             if (substr($url, 0, $protocol_len) == $protocol)
             {
                 $len = strlen($url);
-                if (strtolower(substr($_SERVER["SCRIPT_URI"], 0, $len)) == $url)
+                if ( strtolower(substr($_SERVER["SCRIPT_URI"], 0, $len)) == $url )
                 {
                     # 匹配到项目
                     return '/' . substr($_SERVER["SCRIPT_URI"], $len);
@@ -1406,7 +1416,7 @@ final class Bootstrap
                     {
                         if (preg_match('#^http(s)?\://#i', $tmp_url))
                         {
-                            if (($path_info_admin = $get_path_info($tmp_url)) != false)
+                            if (($path_info_admin = $get_path_info($tmp_url)) !== false)
                             {
                                 self::$project   = $project;
                                 self::$path_info = $path_info_admin;
@@ -1419,7 +1429,7 @@ final class Bootstrap
                         else
                         {
                             # /开头的后台URL
-                            $admin_url[] = $admin_url;
+                            $admin_url[] = $tmp_url;
                         }
                     }
                 }
@@ -1433,7 +1443,7 @@ final class Bootstrap
 
                     foreach ( $item['url'] as $url )
                     {
-                        if (($path_info = $get_path_info($url)) != false)
+                        if (($path_info = $get_path_info($url)) !== false)
                         {
                             self::$project = $project;
                             self::$path_info = $path_info;
@@ -1444,7 +1454,7 @@ final class Bootstrap
                                 foreach ( $admin_url as $url2 )
                                 {
                                     # 处理后台URL不是 http:// 或 https:// 开头的形式
-                                    if (($path_info_admin = $get_path_info($url2)) != false)
+                                    if (($path_info_admin = $get_path_info($url2)) !== false)
                                     {
                                         self::$path_info = $path_info_admin;
                                         self::$base_url .= ltrim($url2, '/');
@@ -1461,6 +1471,7 @@ final class Bootstrap
                 }
             }
         }
+
 
         if (self::$project)
         {
@@ -1556,6 +1567,12 @@ final class Bootstrap
                     $request_mode = 'app';
                 }
             }
+        }
+
+        // 更新BASE URL
+        if ( self::$base_url[0]=='/' && self::$config['core']['url']['site'] )
+        {
+            self::$base_url = rtrim(self::$config['core']['url']['site'],'/').'/'.ltrim(self::$base_url,'/');
         }
     }
 }

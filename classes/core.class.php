@@ -649,13 +649,23 @@ abstract class Core
      * 返回URL对象
      *
      * @param string $url URL，若不传，则返回的是Core_Url
+     * @param bool $return_full_url 返回完整的URL，带http(s)://开头
      * @return \Core\Url
      * @return string
      */
-    public static function url($url = null)
+    public static function url($url = null , $return_full_url = false)
     {
         list($url,$query) = \explode('?', $url , 2);
-        return \Bootstrap::$base_url . \ltrim($url, '/') . ($url!='' && \substr($url,-1)!='/' && false===\strpos($url,'.') && \Bootstrap::$config['core']['url_suffix']?\Bootstrap::$config['core']['url_suffix']:'') . ($query?'?'.$query:'');
+
+        $url = \Bootstrap::$base_url. \ltrim($url,'/') . ($url!='' && \substr($url,-1)!='/' && false===\strpos($url,'.') && \Bootstrap::$config['core']['url_suffix']?\Bootstrap::$config['core']['url_suffix']:'') . ($query?'?'.$query:'');
+
+        // 返回完整URL
+        if ( $return_full_url && !preg_match('#^http(s)?://#i', $url) )
+        {
+            $url = HttpIO::PROTOCOL . '://' . $_SERVER["HTTP_HOST"] . $url;
+        }
+
+        return $url;
     }
 
     /**
