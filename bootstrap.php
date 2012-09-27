@@ -1056,6 +1056,49 @@ final class Bootstrap
     }
 
     /**
+     * 返回协议类型
+     *
+     * 当在命令行里执行，则返回null
+     *
+     * @return null/http/https
+     */
+    public static function protocol()
+    {
+        static $protocol = null;
+        if (null===$protocol)
+        {
+
+            if ( IS_CLI )
+            {
+                return null;
+            }
+            else
+            {
+                $https_key = Core::config('core.server_httpson_key');
+                if ($https_key)
+                {
+                    $https_key = strtoupper($https_key);
+                }
+                else
+                {
+                    $https_key = 'HTTPS';
+                }
+                if ( !empty($_SERVER[$https_key]) && filter_var($_SERVER[$https_key], FILTER_VALIDATE_BOOLEAN) )
+                {
+
+                    $protocol = 'https://';
+                }
+                else
+                {
+                    $protocol = 'http://';
+                }
+            }
+        }
+
+        return $protocol;
+    }
+
+    /**
      * 寻找控制器
      *
      * @return array
@@ -1268,6 +1311,19 @@ final class Bootstrap
      */
     private static function setup_by_url( & $request_mode )
     {
+        # 当没有$_SERVER["SCRIPT_URL"] 时拼接起来
+        if ( !isset($_SERVER["SCRIPT_URL"]) )
+        {
+            $tmp_uri = explode('?', $_SERVER["REQUEST_URI"] ,2);
+            $_SERVER["SCRIPT_URL"] = $tmp_uri[0];
+        }
+
+        # 当没有$_SERVER["SCRIPT_URI"] 时拼接起来
+        if ( !isset($_SERVER["SCRIPT_URI"]) )
+        {
+            $_SERVER["SCRIPT_URI"] = (isset($_SERVER["HTTPS"]) && $_SERVER["HTTPS"]=='on'?'https':'http').'://'.$_SERVER["HTTP_HOST"].$_SERVER["SCRIPT_URL"];
+        }
+
         # 处理base_url
         if (null === self::$base_url && isset($_SERVER["SCRIPT_NAME"]) && $_SERVER["SCRIPT_NAME"])
         {
@@ -1341,30 +1397,8 @@ final class Bootstrap
 
         $get_path_info = function (& $url)
         {
-            static $protocol = null,$protocol_len=0;
-            if ( null===$protocol )
-            {
-                $https_key = \Core::config('core.server_httpson_key');
-                if ($https_key)
-                {
-                    $https_key = strtoupper($https_key);
-                }
-                else
-                {
-                    $https_key = 'HTTPS';
-                }
-                if ( !empty($_SERVER[$https_key]) && filter_var($_SERVER[$https_key], FILTER_VALIDATE_BOOLEAN) )
-                {
-
-                    $protocol = 'https://';
-                    $protocol_len = 8;
-                }
-                else
-                {
-                    $protocol = 'http://';
-                    $protocol_len = 7;
-                }
-            }
+            $protocol = Bootstrap::protocol().'://';
+            $protocol_len = strlen($protocol);
 
             $url = strtolower($url);
 
