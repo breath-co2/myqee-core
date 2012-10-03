@@ -21,24 +21,7 @@ if (!\defined('_HTTPIO_METHOD'))
         }
         \define('_HTTPIO_IS_AJAX',$is_ajax);
 
-        $https_key = \Core::config('core.server_httpson_key');
-        if ($https_key)
-        {
-            $https_key = strtoupper($https_key);
-        }
-        else
-        {
-            $https_key = 'HTTPS';
-        }
-        if ( !empty($_SERVER[$https_key]) && \filter_var($_SERVER[$https_key], \FILTER_VALIDATE_BOOLEAN) )
-        {
-            $protocol = 'https';
-        }
-        else
-        {
-            $protocol = 'http';
-        }
-        \define('_HTTPIO_PROTOCOL',$protocol);
+        \define('_HTTPIO_PROTOCOL',\Core::protocol());
 
         $get_ip =function ()
         {

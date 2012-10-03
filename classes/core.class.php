@@ -648,9 +648,8 @@ abstract class Core
     /**
      * 返回URL对象
      *
-     * @param string $url URL，若不传，则返回的是Core_Url
+     * @param string $url URL
      * @param bool $return_full_url 返回完整的URL，带http(s)://开头
-     * @return \Core\Url
      * @return string
      */
     public static function url($url = null , $return_full_url = false)
@@ -660,9 +659,9 @@ abstract class Core
         $url = \Bootstrap::$base_url. \ltrim($url,'/') . ($url!='' && \substr($url,-1)!='/' && false===\strpos($url,'.') && \Bootstrap::$config['core']['url_suffix']?\Bootstrap::$config['core']['url_suffix']:'') . ($query?'?'.$query:'');
 
         // 返回完整URL
-        if ( $return_full_url && !preg_match('#^http(s)?://#i', $url) )
+        if ( $return_full_url && !\preg_match('#^http(s)?://#i', $url) )
         {
-            $url = HttpIO::PROTOCOL . '://' . $_SERVER["HTTP_HOST"] . $url;
+            $url = \HttpIO::PROTOCOL . '://' . $_SERVER["HTTP_HOST"] . $url;
         }
 
         return $url;
@@ -732,6 +731,18 @@ abstract class Core
 
         # 保存日志
         return static::write_log($file, $data, $type);
+    }
+
+    /**
+     * 返回协议类型
+     *
+     * 当在命令行里执行，则返回null
+     *
+     * @return null/http/https
+     */
+    public static function protocol()
+    {
+        return \Bootstrap::protocol();
     }
 
     /**
