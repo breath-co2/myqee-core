@@ -1325,7 +1325,11 @@ final class Bootstrap
         }
 
         # 处理base_url
-        if (null === self::$base_url && isset($_SERVER["SCRIPT_NAME"]) && $_SERVER["SCRIPT_NAME"])
+        if (isset(self::$config['core']['root_path']) && self::$config['core']['root_path'])
+        {
+            self::$base_url = rtrim(self::$config['core']['root_path'],'/');
+        }
+        else if (null === self::$base_url && isset($_SERVER["SCRIPT_NAME"]) && $_SERVER["SCRIPT_NAME"])
         {
             $base_url_len = strrpos($_SERVER["SCRIPT_NAME"], '/');
             if ($base_url_len)
@@ -1604,9 +1608,9 @@ final class Bootstrap
         }
 
         // 更新BASE URL
-        if ( self::$base_url[0]=='/' && self::$config['core']['url']['site'] )
+        if ( isset(self::$config['core']['root_path']) && self::$config['core']['root_path'] && self::$base_url[0]=='/' )
         {
-            self::$base_url = rtrim(self::$config['core']['url']['site'],'/').'/'.ltrim(self::$base_url,'/');
+            self::$base_url = rtrim(self::$config['core']['root_path'],'/').'/'.ltrim(self::$base_url,'/');
         }
     }
 }
