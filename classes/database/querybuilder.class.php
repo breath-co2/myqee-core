@@ -145,9 +145,9 @@ class Database_QueryBuilder
         {
             $values = \func_get_args();
         }
-    
+
         $this->_builder['values'] = \array_merge($this->_builder['values'], $values);
-    
+
         return $this;
     }
 
@@ -612,7 +612,7 @@ class Database_QueryBuilder
      */
     public function order_by($column, $direction = 'ASC')
     {
-        $this->_builder['order_by'][] = array($column, $direction);
+        $this->_builder['order_by'][] = array($column, \strtoupper($direction));
 
         return $this;
     }
@@ -685,7 +685,7 @@ class Database_QueryBuilder
     {
         return $this->or_where($column, array($mod_dig,$value,$op) , 'mod' );
     }
-    
+
 
     /**
      * 使用指定索引
