@@ -155,6 +155,11 @@ class Database extends \Database_QueryBuilder
             throw new \Exception('Database Driver:'.$driver.' not found.');
         }
 
+        if (!isset($this->config['connection']))
+        {
+            throw new \Exception('Database connection not set.');
+        }
+
         if (\is_string($this->config['connection']))
         {
             $this->config['connection'] = static::parse_dsn($this->config['connection']);
@@ -521,7 +526,7 @@ class Database extends \Database_QueryBuilder
         }
         else
         {
-            $connection = \parse_url('http://'.$connection);
+            $connection = \parse_url('http://' . $connection);
 
             if (isset($connection['user']))
             {
@@ -542,7 +547,7 @@ class Database extends \Database_QueryBuilder
             {
                 if ($connection['host']==='unix(')
                 {
-                    list($db['persistent'], $connection['path']) = \explode(')', $connection['path'], 2);
+                    list( $db['persistent'], $connection['path'] ) = \explode(')', $connection['path'], 2);
                 }
                 else
                 {

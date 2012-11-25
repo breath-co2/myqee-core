@@ -92,12 +92,78 @@ class Database_QueryBuilder
      * Choose the columns to select from, using an array.
      *
      * @param   array  list of column names or aliases
-     * @return \Database
+     * @return  Database
      */
     public function select_array(array $columns)
     {
-        $this->_builder['select'] = \array_merge($this->_builder['select'], $columns);
+        $this->_builder['select'] = array_merge($this->_builder['select'], $columns);
+    
+        return $this;
+    }
+    
+    /**
+     * 查询最大值
+     *
+     *   $db->select_max('test');
+     *
+     * @param string $conlumn
+     * @return  Database
+     */
+    public function select_max($conlumn)
+    {
+        $this->select_adv($conlumn,'max');
+    
+        return $this;
+    }
+    
+    /**
+     * 查询平均值
+     *
+     *   $db->select_min('test');
+     *
+     * @param string $conlumn
+     * @return  Database
+     */
+    public function select_min($conlumn)
+    {
+        $this->select_adv($conlumn,'min');
+    
+        return $this;
+    }
 
+    /**
+     * 查询平均值
+     *
+     *   $db->select_avg('test');
+     *
+     * @param string $conlumn
+     * @return  Database
+     */
+    public function select_avg($conlumn)
+    {
+        $this->select_adv($conlumn,'avg');
+    
+        return $this;
+    }
+    
+    /**
+     * 高级查询方式
+     *
+     * 需要相应接口支持，
+     * 目前支持MongoDB的aggregation框架Group查询：$sum,$max,$min,$avg,$last,$first等，详情见 http://docs.mongodb.org/manual/reference/aggregation/group/
+     * MySQL支持sum,max,min,svg等
+     *
+     *    $db->select_adv('test','max');        //查询最大值
+     *    $db->seleve_adv('test','sum',3);      //查询+3的总和
+     *
+     * @param string $conlumn
+     * @param string $opt
+     * @return Database
+     */
+    public function select_adv($conlumn, $opt1=null, $opt2=null)
+    {
+        $this->_builder['select_adv'][] = \func_get_args();
+    
         return $this;
     }
 
@@ -436,6 +502,7 @@ class Database_QueryBuilder
     public function reset()
     {
         $this->_builder['select']     =
+        $this->_builder['select_adv'] =
         $this->_builder['from']       =
         $this->_builder['join']       =
         $this->_builder['where']      =
@@ -509,7 +576,7 @@ class Database_QueryBuilder
         if ( !is_object($column) )
         {
             $column = \trim($column);
-            if ( \preg_match('#^(.*)(>|<|>=|<=)$#', $column , $m) )
+            if ( \preg_match('#^(.*)(>|<|>=|<=|\!=|<>)$#', $column , $m) )
             {
                 $column = $m[1];
                 $op = $m[2];

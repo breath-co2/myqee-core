@@ -102,7 +102,7 @@ class Database_Driver_Mongo extends Database_Driver
 
     protected function _connect()
     {
-        $database = $hostname = $port = $socket = $username = $password = $persistent = null;
+        $database = $hostname = $port = $username = $password = $persistent = $readpreference = null;
         \extract($this->config['connection']);
 
         if (!$port>0)
@@ -127,7 +127,8 @@ class Database_Driver_Mongo extends Database_Driver
             }
             else
             {
-                $hostconfig = array(
+                $hostconfig = array
+                (
                     $hostname
                 );
             }
@@ -147,9 +148,33 @@ class Database_Driver_Mongo extends Database_Driver
 
         }
 
+        // 获取所有的主数据库
+        if ( \is_array($this->config['connection']['hostname']) )
+        {
+            if ( \is_array($this->config['connection']['hostname']['master']) )
+            {
+                $all_master_hosts = $this->config['connection']['hostname']['master'];
+            }
+            else
+            {
+                $all_master_hosts = array
+                (
+                    $this->config['connection']['hostname']['master']
+                );
+            }
+        }
+        else
+        {
+            $all_master_hosts = array
+            (
+                $this->config['connection']['hostname']
+            );
+        }
+
         # 错误服务器
         static $error_host = array();
 
+        $last_error = null;
         while (true)
         {
             $hostname = $this->_get_rand_host($error_host);
@@ -157,56 +182,71 @@ class Database_Driver_Mongo extends Database_Driver
             {
                 \Core::debug()->error($error_host,'error_host');
 
-                throw new \Exception('数据库链接失败');
+                if ($last_error)throw $last_error;
+                throw new \Exception('connect mongodb server error.');
             }
 
             $_connection_id = $this->_get_connection_hash($hostname, $port, $username);
             static::$_current_connection_id_to_hostname[$_connection_id] = $hostname.':'.$port;
 
-            for ($i=1; $i<=2; $i++)
+            try
             {
-                # 尝试重连
-                try
+                $time = \microtime(true);
+            
+                $options = array();
+            
+                // 所有非主数据库都加上replicaSet参数
+                if ( !\in_array($hostname, $all_master_hosts) )
                 {
-                    $time = \microtime(true);
-
-                    if ($username)
-                    {
-                        $tmplink = new \Mongo("mongodb://{$username}:{$password}@{$hostname}:{$port}/");
-                    }
-                    else
-                    {
-                        $tmplink = new \Mongo("mongodb://{$hostname}:{$port}/");
-                    }
-
-                    if ( \method_exists($tmplink,'setReadPreference') )
-                    {
-                        // (PECL mongo >=1.3.0)
-                        // http://www.php.net/manual/en/mongo.setreadpreference.php
-                        $tmplink->setReadPreference(\Mongo::RP_SECONDARY_PREFERRED);
-                    }
-
-                    Core::debug()->info('MongoDB '.($username?$username.'@':'').$hostname.':'.$port.' connection time:' . (\microtime(true) - $time));
-
-                    # 连接ID
-                    $this->_connection_ids[$this->_connection_type] = $_connection_id;
-                    static::$_connection_instance[$_connection_id] = $tmplink;
-
-                    unset($tmplink);
-
-                    break 2;
+                    $options['replicaSet'] = true;
                 }
-                catch ( \Exception $e )
+            
+                // 长连接设计
+                if ($persistent)
                 {
-                    if (\IS_DEBUG)\Core::debug()->error(($username?$username.'@':'').$hostname.':'.$port,'connect mongodb server error');
-
-                    if (2==$i && !\in_array($hostname, $error_host))
-                    {
-                        $error_host[] = $hostname;
-                    }
-
-                    # 3毫秒后重新连接
-                    \usleep(3000);
+                    $options['persist'] = \is_string($persistent)?$persistent:'x';
+                }
+            
+                if ($username)
+                {
+                    $tmplink = new \Mongo("mongodb://{$username}:{$password}@{$hostname}:{$port}/",$options);
+                }
+                else
+                {
+                    $tmplink = new \Mongo("mongodb://{$hostname}:{$port}/",$options);
+                }
+                if (false===$tmplink)throw new \Exception('connect mongodb server error.');
+            
+                if (null!==$readpreference)
+                {
+                    $tmplink->setReadPreference($readpreference);
+                }
+            
+                \Core::debug()->info('MongoDB '.($username?$username.'@':'').$hostname.':'.$port.' connection time:' . (\microtime(true) - $time));
+            
+                # 连接ID
+                $this->_connection_ids[$this->_connection_type] = $_connection_id;
+                static::$_connection_instance[$_connection_id] = $tmplink;
+            
+                unset($tmplink);
+            
+                break;
+            }
+            catch ( \Exception $e )
+            {
+                if (\IS_DEBUG)
+                {
+                    \Core::debug()->error(($username?$username.'@':'').$hostname.':'.$port,'connect mongodb server error');
+                    $last_error = new \Exception($e->getMessage(),$e->getCode());
+                }
+                else
+                {
+                    $last_error = new \Exception('connect mongodb server error',$e->getCode());
+                }
+            
+                if ( !\in_array($hostname, $error_host) )
+                {
+                    $error_host[] = $hostname;
                 }
             }
         }
@@ -217,6 +257,9 @@ class Database_Driver_Mongo extends Database_Driver
      */
     public function close_connect()
     {
+        //TODO 关闭连接有bug
+
+        return ;
         if ($this->_connection_ids)foreach ($this->_connection_ids as $key=>$connection_id)
         {
             if ($connection_id && static::$_connection_instance[$connection_id])
@@ -309,11 +352,11 @@ class Database_Driver_Mongo extends Database_Driver
                 # 批量插入
                 $sql['type'] = 'batchinsert';
 
-                foreach ($builder['columns'] as $key=>$field)
+                foreach ($builder['columns'] as $field)
                 {
                     foreach ($builder['values'] as $k=>$v)
                     {
-                        $data[$k][$field] = $builder['values'][$k][$key];
+                        $data[$k][$field] = $builder['values'][$k][$field];
                     }
                 }
                 $sql['data'] = $data;
@@ -321,9 +364,9 @@ class Database_Driver_Mongo extends Database_Driver
             else
             {
                 # 单条插入
-                foreach ($builder['columns'] as $key=>$field)
+                foreach ($builder['columns'] as $field)
                 {
-                    $data[$field] = $builder['values'][0][$key];
+                    $data[$field] = $builder['values'][0][$field];
                 }
                 $sql['data'] = $data;
             }
@@ -426,6 +469,12 @@ class Database_Driver_Mongo extends Database_Driver
                 $sql['select'] = $s;
             }
 
+            // 高级查询条件
+            if ( $builder['select_adv'] )
+            {
+                $sql['select_adv'] = $builder['select_adv'];
+            }
+
             // 排序
             if ( $builder['order_by'] )
             {
@@ -438,20 +487,7 @@ class Database_Driver_Mongo extends Database_Driver
             // group by
             if ( $builder['group_by'] )
             {
-                $sql['$group'] = array();
-
-                if ( 1===\count($builder['group_by']) )
-                {
-                    $sql['$group']['_id'] = '$'.\current($builder['group_by']);
-                }
-                else
-                {
-                    $sql['$group']['_id'] = array();
-                    foreach ($builder['group_by'] as $item)
-                    {
-                        $sql['$group']['_id'][$item] = '$'.$item;
-                    }
-                }
+                $sql['group_by'] = $builder['group_by'];
             }
         }
 
@@ -608,9 +644,27 @@ class Database_Driver_Mongo extends Database_Driver
                             throw new \Exception($result['errmsg']);
                         }
                     }
-                    elseif ( $options['$group'] )
+                    elseif ( $options['group_by'] )
                     {
+                        $select = $options['select'];
                         # group by
+                        $group_opt = array();
+                        if ( 1===\count($options['group_by']) )
+                        {
+                            $k = \current($options['group_by']);
+                            $group_opt['_id'] = '$'.$k;
+                            if ( !isset($select[$k]) )$select[$k] = 1;
+                        }
+                        else
+                        {
+                            $group_opt['_id'] = array();
+                            foreach ($options['group_by'] as $item)
+                            {
+                                $group_opt['_id'][$item] = '$'.$item;
+                                if ( !isset($select[$item]) )$select[$item] = 1;
+                            }
+                        }
+
                         $last_query = 'db.'.$tablename.'.aggregate(';
                         $ops = array();
                         if ($options['where'])
@@ -622,12 +676,11 @@ class Database_Driver_Mongo extends Database_Driver
                             );
                         }
 
-                        $group_opt = $options['$group'];
                         $group_opt['_count'] = array('$sum'=>1);
                         $have_dot = false;
-                        if ($options['select'])
+                        if ($select)
                         {
-                            foreach ($options['select'] as $k=>$v)
+                            foreach ($select as $k=>$v)
                             {
                                 if (1===$v)
                                 {
@@ -656,6 +709,54 @@ class Database_Driver_Mongo extends Database_Driver
                             }
                         }
 
+                        // 处理高级查询条件
+                        if ($options['select_adv'])foreach ($options['select_adv'] as $item)
+                        {
+                            if (!\is_array($item))continue;
+
+                            if ( \preg_match('#^(.*) AS (.*)$#i', $item[0] , $m) )
+                            {
+                                $column = $m[1];
+                                $alias  = $m[2];
+                            }
+                            else
+                            {
+                                $column = $alias = $item[0];
+                            }
+                            $alias = \str_replace('.','->',$alias);
+                            if ( false===$have_dot && false!==\strpos($alias,'.') )
+                            {
+                                $have_dot = true;
+                            }
+
+                            switch ( $item[1] )
+                            {
+                                case 'max':
+                                case 'min':
+                                case 'avg':
+                                case 'first':
+                                case 'last':
+                                    $group_opt[$alias] = array
+                                    (
+                                        '$'.$item[1] => '$'.$column,
+                                    );
+                                    break;
+                                case 'addToSet':
+                                case 'concat':
+                                    $group_opt[$alias] = array
+                                    (
+                                        '$addToSet' => '$'.$column,
+                                    );
+                                    break;
+                                case 'sum':
+                                    $group_opt[$alias] = array
+                                    (
+                                        '$sum' => isset($item[2])?$item[2]:'$'.$column,
+                                    );
+                                    break;
+                            }
+                        }
+
                         $ops[] = array
                         (
                             '$group' => $group_opt,
@@ -665,12 +766,11 @@ class Database_Driver_Mongo extends Database_Driver
                         $last_query .= ')';
 
                         $result = $connection->selectCollection($tablename)->aggregate($ops);
-                        if ( false===$result )
+
+                        // 兼容不同版本的aggregate返回
+                        if ( $result && ($result['ok']==1||!isset($result['errmsg'])) )
                         {
-                            throw new \Exception('the group query has an error:'.$last_query);
-                        }
-                        else
-                        {
+                            if ($result['ok']==1 && \is_array($result['result']))$result = $result['result'];
                             if ($have_dot)foreach ($result as &$item)
                             {
                                 $result2[] = array();
@@ -693,6 +793,10 @@ class Database_Driver_Mongo extends Database_Driver
                             $count = \count($result);
 
                             $rs = new \Database_Driver_Mongo_Result(new \ArrayIterator($result), $options, $as_object ,$this->config );
+                        }
+                        else
+                        {
+                            throw new \Exception($result['errmsg'].'.query:'.$last_query);
                         }
                     }
                     else
@@ -760,7 +864,7 @@ class Database_Driver_Mongo extends Database_Driver
                         $rs = array
                         (
                             '',
-                            \count($options['data']),
+                            $count,
                         );
                     }
                     elseif ( isset($result['data']['_id']) && $result['data']['_id'] instanceof \MongoId )
