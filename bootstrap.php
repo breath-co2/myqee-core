@@ -518,7 +518,10 @@ final class Bootstrap
                     $load_library(self::$config['core']['libraries']['debug']);
                 }
 
-                # 输出一些系统信息
+                # 输出服务器信息
+                Core::debug()->info('SERVER IP:' . $_SERVER["SERVER_ADDR"] . (function_exists('php_uname')?'. SERVER NAME:' . php_uname('a') : ''));
+
+                # 输出Include Path
                 Core::debug()->group( 'include path' );
                 foreach ( self::$include_path as $value )
                 {
