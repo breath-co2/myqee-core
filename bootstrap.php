@@ -1108,16 +1108,16 @@ final class Bootstrap
      */
     private function find_controller($uri)
     {
-        $uri = strtolower('/' . trim($uri, ' /'));
+        $uri = '/' . trim($uri, ' /');
 
-        if (self::$config['core']['url_suffix'] && substr($uri,-strlen(self::$config['core']['url_suffix']))==self::$config['core']['url_suffix'])
+        if (self::$config['core']['url_suffix'] && substr(strtolower($uri),-strlen(self::$config['core']['url_suffix']))==self::$config['core']['url_suffix'])
         {
             $uri = substr($uri,0,-strlen(self::$config['core']['url_suffix']));
         }
 
         if ($uri != '/')
         {
-            $uri_arr = explode('/', $uri);
+            $uri_arr = explode('/', strtolower($uri));
         }
         else
         {
@@ -1244,7 +1244,7 @@ final class Bootstrap
                 {
                     list($ns, $tmp_path, $real_path, $ids) = $tmp_arr;
                     $path_str = $real_path;
-                    $tmpfile = $tmp_path . $tmp_class . self::$dir_setting['controller'][1] . EXT;
+                    $tmpfile = $tmp_path . strtolower($tmp_class) . self::$dir_setting['controller'][1] . EXT;
                     if (IS_DEBUG)
                     {
                         $find_log[] = Core::debug_path($tmpfile);
